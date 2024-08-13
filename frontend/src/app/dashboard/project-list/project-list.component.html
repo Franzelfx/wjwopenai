@@ -1,0 +1,12 @@
+<div class="dashboard-container">
+  <div class="project-card" *ngFor="let project of projects">
+    <div class="project-info">
+      <h3>{{ project.name }}</h3>
+      <p>Erstellt: {{ project.created_at }}</p> <!-- Without date pipe -->
+    </div>
+    <div class="project-actions">
+      <button class="edit-button">Editieren</button>
+      <button class="delete-button">Löschen</button>
+    </div>
+  </div>
+</div>
