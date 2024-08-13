@@ -6,20 +6,20 @@ import { FormsModule } from '@angular/forms';
 import { MatTreeModule } from '@angular/material/tree';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { UploadModule } from './upload/upload.module'; // Import the UploadModule
-import { ResultsModule } from './results/results.module'; // Import the ResultsModule
+import { UploadModule } from './upload/upload.module';
+import { ResultsModule } from './results/results.module';
 
 @NgModule({
   declarations: [ProcessingComponent],
   imports: [
     CommonModule,
     ProcessingRoutingModule,
-    FormsModule, // Add this line
+    FormsModule,
     MatTreeModule,
     MatIconModule,
     MatButtonModule,
-    UploadModule,
-    ResultsModule,
+    UploadModule, // Correctly include UploadModule
+    ResultsModule, // Correctly include ResultsModule
   ],
 })
 export class ProcessingModule {}

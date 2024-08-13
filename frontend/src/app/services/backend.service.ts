@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root',
 })
 export class BackendService {
-  private apiUrl = 'http://localhost:8000/dashboard';
+  public apiUrl = 'http://localhost:8000/dashboard';
 
   constructor(private http: HttpClient) {
     console.log('BackendService initialized');
@@ -16,11 +16,6 @@ export class BackendService {
   getProjects(): Observable<any[]> {
     console.log('Calling API to fetch projects');
     return this.http.get<any[]>(`${this.apiUrl}/`);
-  }
-
-  getProject(projectId: number): Observable<any> {
-    console.log(`Calling API to fetch project with ID ${projectId}`);
-    return this.http.get<any>(`${this.apiUrl}/${projectId}`);
   }
 
   createProject(projectData: any): Observable<any> {
@@ -57,7 +52,35 @@ export class BackendService {
     );
     return this.http.get(
       `${this.apiUrl}/projects/${projectId}/download_output`,
-      { responseType: 'blob' }
+      {
+        responseType: 'blob',
+      }
+    );
+  }
+
+  // **New Method**: Download success output as zip
+  downloadSuccessOutput(projectId: number): Observable<Blob> {
+    console.log(
+      `Calling API to download successful output for project with ID ${projectId}`
+    );
+    return this.http.get(
+      `${this.apiUrl}/projects/${projectId}/download_success_output`,
+      {
+        responseType: 'blob',
+      }
+    );
+  }
+
+  // **New Method**: Download fail output as zip
+  downloadFailOutput(projectId: number): Observable<Blob> {
+    console.log(
+      `Calling API to download failed output for project with ID ${projectId}`
+    );
+    return this.http.get(
+      `${this.apiUrl}/projects/${projectId}/download_fail_output`,
+      {
+        responseType: 'blob',
+      }
     );
   }
 

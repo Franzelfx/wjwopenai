@@ -9,6 +9,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { ResultsModule } from './processing/results/results.module';
 
 
 @NgModule({
@@ -23,6 +24,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     MatInputModule,
     FormsModule,
     DashboardModule,
+    ResultsModule,
   ],
   providers: [],
   bootstrap: [AppComponent],

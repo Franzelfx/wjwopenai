@@ -1,0 +1,56 @@
+/* General styling for the dialog */
+mat-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 0;
+}
+
+.full-width {
+  width: 100%;
+}
+
+mat-form-field {
+  width: 100%;
+}
+
+h1[mat-dialog-title] {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Styling for the dialog actions (buttons) */
+mat-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+  margin-top: 20px;
+}
+
+.cancel-button {
+  color: #f44336;
+}
+
+.save-button {
+  background-color: #4caf50;
+  color: white;
+}
+
+.save-button:hover {
+  background-color: #43a047;
+}
+
+.cancel-button,
+.save-button {
+  font-weight: bold;
+  text-transform: uppercase;
+  padding: 10px 20px;
+}
+
+.save-button.mat-button {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}

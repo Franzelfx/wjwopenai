@@ -7,49 +7,77 @@
   width: 100%;
   max-width: 100%;
   margin: 0;
+  justify-content: center;
+  align-items: center;
 }
 
 .sidebar {
-  width: 25%;
-  min-width: 400px;
-  background-color: #ffffff;
+  width: 350px;
+  background-color: #fdfdfd;
   border-radius: 15px;
   padding: 20px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  border: 2px solid black;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #ddd;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .file-tree-container {
   max-height: 400px;
   overflow-y: auto;
   margin-bottom: 20px;
+  padding-right: 10px;
+}
+
+.mat-tree-node {
+  display: flex;
+  align-items: center;
+}
+
+.mat-tree-node button {
+  margin-right: 10px;
+}
+
+.mat-tree-node span {
+  font-size: 14px;
+  color: #333;
+}
+
+.mat-tree-node .file-node {
+  display: flex;
+  align-items: center;
+  padding-left: 20px;
+}
+
+.file-icon {
+  margin-right: 5px;
+  font-size: 16px;
+  color: #666;
 }
 
 .upload-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  align-items: center;
+  gap: 12px;
+  align-items: stretch;
   margin-bottom: 20px;
-  width: 100%;
-  min-width: 250px;
 }
 
 .upload-label {
   width: 100%;
-  padding: 10px;
-  border: 2px solid black;
+  padding: 12px;
+  border: 1px solid #ccc;
   border-radius: 5px;
-  background-color: #f5f5f5;
+  background-color: #fafafa;
   cursor: pointer;
   text-align: center;
+  transition: background-color 0.3s ease;
+  max-width: 100px;
 }
 
 .upload-label:hover {
-  background-color: #e0e0e0;
+  background-color: #f0f0f0;
 }
 
 .upload-section input[type="file"] {
@@ -58,12 +86,13 @@
 
 .upload-section button {
   width: 100%;
-  padding: 10px;
-  border: 2px solid black;
+  padding: 12px;
+  border: none;
   border-radius: 5px;
   cursor: pointer;
-  text-align: center;
   font-weight: bold;
+  font-size: 14px;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .upload-button {
@@ -71,19 +100,36 @@
   color: #fff;
 }
 
+.upload-button:hover {
+  background-color: #43a047;
+  box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
+}
+
 .delete-button {
   background-color: #f44336;
   color: #fff;
 }
 
+.delete-button:hover:not(:disabled) {
+  background-color: #e53935;
+  box-shadow: 0 4px 10px rgba(244, 67, 54, 0.3);
+}
+
+.delete-button:disabled {
+  background-color: #ddd;
+  cursor: not-allowed;
+}
+
 .selected {
   font-weight: bold;
-  color: #fff;
-  background-color: #f44336;
+  color: #f44336;
   padding: 2px 4px;
   border-radius: 3px;
+  background-color: #f9f9f9;
 }
 
 .file {
-  padding-left: 20px;
+  padding-left: 25px;
+  font-style: italic;
+  color: #666;
 }

@@ -21,15 +21,22 @@ def create_project(db: Session, project: ProjectCreate):
     project_dir = os.path.join(PROJECTS_BASE_DIR, timestamp)
 
     try:
-        # Create directories with 777 permissions
-        os.makedirs(project_dir, mode=0o777, exist_ok=True)
-        os.makedirs(os.path.join(project_dir, "input"), mode=0o777, exist_ok=True)
-        os.makedirs(
-            os.path.join(project_dir, "output", "fail"), mode=0o777, exist_ok=True
-        )
-        os.makedirs(
-            os.path.join(project_dir, "output", "success"), mode=0o777, exist_ok=True
-        )
+        # Ensure umask does not interfere with directory creation permissions
+        previous_umask = os.umask(0)
+        try:
+            # Create directories with 777 permissions
+            os.makedirs(project_dir, mode=0o777, exist_ok=True)
+            os.makedirs(os.path.join(project_dir, "input"), mode=0o777, exist_ok=True)
+            os.makedirs(
+                os.path.join(project_dir, "output", "fail"), mode=0o777, exist_ok=True
+            )
+            os.makedirs(
+                os.path.join(project_dir, "output", "success"),
+                mode=0o777,
+                exist_ok=True,
+            )
+        finally:
+            os.umask(previous_umask)
 
         db_project = Project(
             name=project.name,
@@ -95,8 +102,7 @@ def delete_project(db: Session, project_id: int):
         print(f"Project {db_project.name} deleted from database.")
 
         if os.path.exists(project_dir):
-            shutil.rmtree(project_dir)
-            print(f"Directory {project_dir} removed successfully.")
+            delete_directory(project_dir)
         else:
             print(f"Directory {project_dir} does not exist or was already removed.")
 
@@ -108,6 +114,24 @@ def delete_project(db: Session, project_id: int):
         )
 
     return db_project
+
+
+def delete_directory(directory_path):
+    """
+    Safely delete a directory and its contents.
+    """
+    try:
+        shutil.rmtree(directory_path)
+        print(f"Directory {directory_path} removed successfully.")
+    except PermissionError as e:
+        print(f"Permission denied: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete directory: {e}")
+    except FileNotFoundError as e:
+        print(f"File not found: {e}")
+        raise HTTPException(status_code=404, detail=f"Directory not found: {e}")
+    except Exception as e:
+        print(f"Error deleting directory: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete directory: {e}")
 
 
 def upload_files_to_input(db: Session, project_id: int, files):
@@ -210,6 +234,64 @@ def download_output_files(db: Session, project_id: int):
                 zipf.write(
                     os.path.join(root, file),
                     os.path.relpath(os.path.join(root, file), output_dir),
+                )
+
+    return zip_filepath
+
+
+def download_success_output_files(db: Session, project_id: int):
+    """
+    Download all successful output files as a zip.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    success_dir = os.path.join(
+        PROJECTS_BASE_DIR, project.directory_name, "output", "success"
+    )
+
+    if not os.path.exists(success_dir):
+        raise HTTPException(
+            status_code=404, detail="Success output directory not found"
+        )
+
+    zip_filename = f"{project.name}_success_output.zip"
+    zip_filepath = os.path.join(success_dir, zip_filename)
+
+    with zipfile.ZipFile(zip_filepath, "w") as zipf:
+        for root, _, files in os.walk(success_dir):
+            for file in files:
+                zipf.write(
+                    os.path.join(root, file),
+                    os.path.relpath(os.path.join(root, file), success_dir),
+                )
+
+    return zip_filepath
+
+
+def download_fail_output_files(db: Session, project_id: int):
+    """
+    Download all failed output files as a zip.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    fail_dir = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "output", "fail")
+
+    if not os.path.exists(fail_dir):
+        raise HTTPException(status_code=404, detail="Fail output directory not found")
+
+    zip_filename = f"{project.name}_fail_output.zip"
+    zip_filepath = os.path.join(fail_dir, zip_filename)
+
+    with zipfile.ZipFile(zip_filepath, "w") as zipf:
+        for root, _, files in os.walk(fail_dir):
+            for file in files:
+                zipf.write(
+                    os.path.join(root, file),
+                    os.path.relpath(os.path.join(root, file), fail_dir),
                 )
 
     return zip_filepath

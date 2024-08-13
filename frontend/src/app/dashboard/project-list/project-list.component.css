@@ -1,56 +1,212 @@
+.processing-container {
+  display: flex;
+  height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+  gap: 20px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  justify-content: center;
+  align-items: center;
+}
+
+.sidebar {
+  width: 350px;
+  background-color: #fdfdfd;
+  border-radius: 15px;
+  padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ddd;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.file-tree-container {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  padding-right: 10px;
+}
+
+.mat-tree-node {
+  display: flex;
+  align-items: center;
+}
+
+.mat-tree-node button {
+  margin-right: 10px;
+}
+
+.mat-tree-node span {
+  font-size: 14px;
+  color: #333;
+}
+
+.mat-tree-node .file-node {
+  display: flex;
+  align-items: center;
+  padding-left: 20px;
+}
+
+.file-icon {
+  margin-right: 5px;
+  font-size: 16px;
+  color: #666;
+}
+
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 20px;
+}
+
+.upload-label {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: #fafafa;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.3s ease;
+  max-width: 100px;
+}
+
+.upload-label:hover {
+  background-color: #f0f0f0;
+}
+
+.upload-section input[type="file"] {
+  display: none;
+}
+
+.upload-section button {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.upload-button {
+  background-color: #4caf50;
+  color: #fff;
+}
+
+.upload-button:hover {
+  background-color: #43a047;
+  box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
+}
+
+.delete-button {
+  background-color: #f44336;
+  color: #fff;
+}
+
+.delete-button:hover:not(:disabled) {
+  background-color: #e53935;
+  box-shadow: 0 4px 10px rgba(244, 67, 54, 0.3);
+}
+
+.delete-button:disabled {
+  background-color: #ddd;
+  cursor: not-allowed;
+}
+
+.selected {
+  font-weight: bold;
+  color: #f44336;
+  padding: 2px 4px;
+  border-radius: 3px;
+  background-color: #f9f9f9;
+}
+
+.file {
+  padding-left: 25px;
+  font-style: italic;
+  color: #666;
+}
+
+/* Dashboard container styles */
 .dashboard-container {
   display: flex;
+  flex-wrap: wrap;
   gap: 20px;
   padding: 20px;
-  flex-wrap: wrap;
+  box-sizing: border-box;
+  justify-content: center;
 }
 
 .add-project-card {
+  width: 200px;
+  height: 150px;
+  border-radius: 10px;
+  background-color: #e0e0e0;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.add-project-card:hover {
+  background-color: #d0d0d0;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
 }
 
 .add-project-button {
-  font-size: 3rem;
-  border: 2px solid black;
-  /* Add a border around the button */
-  background-color: transparent;
-  color: black;
-  border-radius: 50%;
-  /* Make the button circular */
-  width: 60px;
-  /* Adjust the size of the button */
-  height: 60px;
+  font-size: 48px;
+  color: #4caf50;
+  background: none;
+  border: none;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  margin: 0;
+  transition: transform 0.3s ease;
+}
+
+.add-project-button:hover {
+  transform: scale(1.1);
 }
 
 .project-card {
   width: 200px;
-  height: 250px;
-  border: 2px solid black;
-  border-radius: 15px;
+  padding: 15px;
+  border-radius: 10px;
+  background-color: #fff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 15px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  background-color: white;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.project-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+.project-info {
+  margin-bottom: 10px;
 }
 
 .project-info h3 {
-  margin: 0;
-  font-size: 1.2rem;
+  font-size: 18px;
+  margin: 0 0 5px 0;
+  color: #333;
 }
 
 .project-info p {
-  margin: 5px 0;
-  font-size: 0.9rem;
+  margin: 0;
+  font-size: 12px;
+  color: #777;
 }
 
 .project-actions {
@@ -58,19 +214,32 @@
   justify-content: space-between;
 }
 
-.edit-button,
-.delete-button {
-  padding: 5px 10px;
-  border: 2px solid black;
+.project-actions .edit-button,
+.project-actions .delete-button {
+  width: 45%;
+  padding: 8px;
+  border: none;
   border-radius: 5px;
   cursor: pointer;
+  font-weight: bold;
+  font-size: 12px;
+  transition: background-color 0.3s ease;
 }
 
-.edit-button {
-  background-color: #f5f5f5;
+.project-actions .edit-button {
+  background-color: #2196f3;
+  color: #fff;
 }
 
-.delete-button {
-  background-color: #f8d7da;
-  color: black;
+.project-actions .edit-button:hover {
+  background-color: #1976d2;
+}
+
+.project-actions .delete-button {
+  background-color: #f44336;
+  color: #fff;
+}
+
+.project-actions .delete-button:hover {
+  background-color: #e53935;
 }

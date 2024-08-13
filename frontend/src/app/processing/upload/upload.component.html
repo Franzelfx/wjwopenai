@@ -4,15 +4,27 @@
     <div class="file-tree-container">
       <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" class="mat-tree">
         <!-- Folder Node -->
-        <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
+        <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
           <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
-            <mat-icon>{{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}</mat-icon>
+            <mat-icon>{{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}</mat-icon>
           </button>
           <span
             (click)="selectItem(node)"
             [class.selected]="selectedItem?.name === node.name"
             [class.file]="!node.expandable"
           >
+            {{node.name}}
+          </span>
+        </mat-tree-node>
+
+        <!-- File Node -->
+        <mat-tree-node *matTreeNodeDef="let node; when: !hasChild" matTreeNodePadding>
+          <span
+            class="file-node"
+            (click)="selectItem(node)"
+            [class.selected]="selectedItem?.name === node.name"
+          >
+            <mat-icon class="file-icon">insert_drive_file</mat-icon>
             {{node.name}}
           </span>
         </mat-tree-node>

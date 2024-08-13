@@ -5,6 +5,7 @@ from schemas.dashboard import ProjectCreate, ProjectUpdate, Project
 from db import get_db
 from typing import List
 from fastapi.responses import FileResponse
+import os
 
 router = APIRouter()
 
@@ -34,8 +35,6 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
 
 
 # File Management Operations
-
-
 @router.post("/projects/{project_id}/upload", response_model=List[str])
 def upload_files_to_input(
     project_id: int, files: List[UploadFile] = File(...), db: Session = Depends(get_db)
@@ -43,14 +42,6 @@ def upload_files_to_input(
     return dashboard_crud.upload_files_to_input(
         db=db, project_id=project_id, files=files
     )
-
-
-@router.delete("/projects/{project_id}/input_files/{filename}", response_model=str)
-def delete_input_file(project_id: int, filename: str, db: Session = Depends(get_db)):
-    return dashboard_crud.delete_input_file(
-        db=db, project_id=project_id, filename=filename
-    )
-
 
 @router.get("/projects/{project_id}/download_output", response_class=FileResponse)
 def download_output_files(project_id: int, db: Session = Depends(get_db)):
@@ -62,12 +53,6 @@ def download_output_files(project_id: int, db: Session = Depends(get_db)):
 def get_file_tree(project_id: int, db: Session = Depends(get_db)):
     return dashboard_crud.get_file_tree(db=db, project_id=project_id)
 
-
-@router.delete("/projects/{project_id}/input_files", response_model=str)
-def delete_all_input_files(project_id: int, db: Session = Depends(get_db)):
-    return dashboard_crud.delete_all_input_files(db=db, project_id=project_id)
-
-
 @router.post("/projects/{project_id}/upload_folder")
 def upload_folder(
     project_id: int, files: List[UploadFile] = File(...), db: Session = Depends(get_db)
@@ -76,7 +61,6 @@ def upload_folder(
         db=db, project_id=project_id, files=files
     )
 
-
 @router.delete("/projects/{project_id}/input_files/{path}", response_model=str)
 def delete_input_file_or_folder(
     project_id: int, path: str, db: Session = Depends(get_db)
@@ -84,3 +68,21 @@ def delete_input_file_or_folder(
     return dashboard_crud.delete_input_file_or_folder(
         db=db, project_id=project_id, path=path
     )
+
+
+@router.get(
+    "/projects/{project_id}/download_success_output", response_class=FileResponse
+)
+def download_success_output_files(project_id: int, db: Session = Depends(get_db)):
+    zip_filepath = dashboard_crud.download_success_output_files(
+        db=db, project_id=project_id
+    )
+    return FileResponse(zip_filepath, filename=os.path.basename(zip_filepath))
+
+
+@router.get("/projects/{project_id}/download_fail_output", response_class=FileResponse)
+def download_fail_output_files(project_id: int, db: Session = Depends(get_db)):
+    zip_filepath = dashboard_crud.download_fail_output_files(
+        db=db, project_id=project_id
+    )
+    return FileResponse(zip_filepath, filename=os.path.basename(zip_filepath))
