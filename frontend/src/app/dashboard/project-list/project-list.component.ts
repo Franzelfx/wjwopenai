@@ -1,5 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { BackendService } from '../../services/backend.service';
+import { MatDialog } from '@angular/material/dialog';
+import { EditProjectDialogComponent } from '../edit-project-dialog/edit-project-dialog.component';
 
 @Component({
   selector: 'app-project-list',
@@ -7,19 +9,20 @@ import { BackendService } from '../../services/backend.service';
   styleUrls: ['./project-list.component.css'],
 })
 export class ProjectListComponent implements OnInit {
-  projects: any[] = []; // Define the projects array
+  projects: any[] = [];
 
-  constructor(private backendService: BackendService) {
-    console.log('ProjectListComponent initialized');
-  }
+  constructor(
+    private backendService: BackendService,
+    public dialog: MatDialog
+  ) {}
 
   ngOnInit(): void {
-    console.log('ngOnInit called - about to fetch projects');
+    this.loadProjects();
+  }
 
-    // Fetch projects from the backend service
+  loadProjects(): void {
     this.backendService.getProjects().subscribe(
       (data: any[]) => {
-        console.log('Projects fetched successfully:', data);
         this.projects = data;
       },
       (error) => {
@@ -28,5 +31,57 @@ export class ProjectListComponent implements OnInit {
     );
   }
 
-  // You can add methods to handle adding, editing, and deleting projects here
+  openAddProjectDialog(): void {
+    const dialogRef = this.dialog.open(EditProjectDialogComponent, {
+      width: '250px',
+      data: { name: '', description: '' }, // Empty data for adding a new project
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        this.backendService.createProject(result).subscribe(
+          (newProject) => {
+            this.projects.push(newProject);
+          },
+          (error) => {
+            console.error('Failed to add project:', error);
+          }
+        );
+      }
+    });
+  }
+
+  editProject(project: any): void {
+    const dialogRef = this.dialog.open(EditProjectDialogComponent, {
+      width: '250px',
+      data: { name: project.name, description: project.description },
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        this.backendService.updateProject(project.id, result).subscribe(
+          () => {
+            project.name = result.name;
+            project.description = result.description;
+          },
+          (error) => {
+            console.error('Failed to update project:', error);
+          }
+        );
+      }
+    });
+  }
+
+  deleteProject(projectId: number): void {
+    if (confirm('Are you sure you want to delete this project?')) {
+      this.backendService.deleteProject(projectId).subscribe(
+        () => {
+          this.projects = this.projects.filter((p) => p.id !== projectId);
+        },
+        (error) => {
+          console.error('Failed to delete project:', error);
+        }
+      );
+    }
+  }
 }

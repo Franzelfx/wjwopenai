@@ -53,35 +53,21 @@ def get_projects(db: Session, skip: int = 0, limit: int = 10):
 
 def update_project(db: Session, project_id: int, project: ProjectUpdate):
     """
-    Update the details of an existing project and rename the corresponding directory if needed.
+    Update the details of an existing project without renaming the directory since the directory
+    name is based on the creation timestamp.
     """
     db_project = db.query(Project).filter(Project.id == project_id).first()
 
     if db_project is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    old_project_name = db_project.name
     db_project.name = project.name
     db_project.description = project.description
     db.commit()
     db.refresh(db_project)
 
-    old_project_dir = os.path.join(PROJECTS_BASE_DIR, old_project_name)
-    new_project_dir = os.path.join(PROJECTS_BASE_DIR, db_project.name)
-
-    if old_project_name != project.name:
-        try:
-            if os.path.exists(old_project_dir):
-                os.rename(old_project_dir, new_project_dir)
-            else:
-                raise HTTPException(
-                    status_code=500, detail="Old project directory does not exist"
-                )
-        except Exception as e:
-            raise HTTPException(
-                status_code=500, detail="Failed to rename project directory"
-            )
-
+    # Since the directory name is based on the timestamp, we do not need to rename the directory.
+    # Just return the updated project information.
     return db_project
 
 

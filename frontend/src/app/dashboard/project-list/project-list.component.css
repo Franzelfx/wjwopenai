@@ -5,6 +5,31 @@
   flex-wrap: wrap;
 }
 
+.add-project-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-project-button {
+  font-size: 3rem;
+  border: 2px solid black;
+  /* Add a border around the button */
+  background-color: transparent;
+  color: black;
+  border-radius: 50%;
+  /* Make the button circular */
+  width: 60px;
+  /* Adjust the size of the button */
+  height: 60px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+}
+
 .project-card {
   width: 200px;
   height: 250px;
@@ -16,19 +41,6 @@
   padding: 15px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   background-color: white;
-}
-
-.add-project-card {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.add-project-button {
-  font-size: 3rem;
-  border: none;
-  background-color: transparent;
-  cursor: pointer;
 }
 
 .project-info h3 {
