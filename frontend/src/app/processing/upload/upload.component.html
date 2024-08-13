@@ -1,13 +1,33 @@
-<div class="sidebar">
-  <h3>Images</h3>
-  <div class="image-list">
-    <div *ngFor="let file of inputFiles">{{ file.name }}</div>
-  </div>
-  <div class="upload-section">
-    <input type="file" multiple (change)="onFileSelected($event)" />
-    <div class="file-name">{{ selectedFileName || 'Keine ausgewählt' }}</div>
-    <button (click)="uploadFiles()">Hochladen</button>
-    <button (click)="deleteFiles()">Löschen</button>
-    <button (click)="confirmFiles()">Bestätigen</button>
+<div class="processing-container">
+  <div class="sidebar">
+    <h3>Folder Structure</h3>
+    <div class="file-tree-container">
+      <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" class="mat-tree">
+        <!-- Folder Node -->
+        <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
+          <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
+            <mat-icon>{{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}</mat-icon>
+          </button>
+          <span
+            (click)="selectItem(node)"
+            [class.selected]="selectedItem?.name === node.name"
+            [class.file]="!node.expandable"
+          >
+            {{node.name}}
+          </span>
+        </mat-tree-node>
+      </mat-tree>
+    </div>
+
+    <!-- Upload Section -->
+    <div class="upload-section">
+      <input type="file" id="folderUpload" webkitdirectory (change)="onFolderSelected($event)" />
+      <label for="folderUpload" class="upload-label">
+        <span>{{ selectedFolderName || 'Select Folder...' }}</span>
+      </label>
+
+      <button class="upload-button" (click)="uploadFolder()">Upload Folder</button>
+      <button class="delete-button" (click)="deleteSelectedItem()" [disabled]="!selectedItem">Delete</button>
+    </div>
   </div>
 </div>

@@ -1,13 +1,22 @@
 .processing-container {
   display: flex;
-  gap: 20px;
+  height: 100vh;
+  /* Take up full screen height */
   padding: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
+  box-sizing: border-box;
+  gap: 20px;
+  width: 100%;
+  /* Ensures the container takes up the full width */
+  max-width: 100%;
+  /* Allow full width usage */
+  margin: 0;
+  /* Remove auto margin to use full space */
 }
 
+/* Sidebar for File Upload and Selection */
 .sidebar {
-  width: 30%;
+  width: 25%;
+  /* Allocate 25% of the width to the sidebar */
   background-color: #ffffff;
   border-radius: 15px;
   padding: 20px;
@@ -29,6 +38,7 @@
   flex-direction: column;
   gap: 10px;
   align-items: center;
+  margin-bottom: 20px;
 }
 
 .upload-label {
@@ -49,10 +59,6 @@
   display: none;
 }
 
-.upload-section .file-name {
-  margin: 10px 0;
-}
-
 .upload-section button {
   width: 100%;
   padding: 10px;
@@ -69,17 +75,21 @@
 }
 
 .delete-button {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid black;
+  border-radius: 5px;
   background-color: #f44336;
   color: #fff;
+  cursor: pointer;
+  text-align: center;
+  font-weight: bold;
 }
 
-.confirm-button {
-  background-color: #008cba;
-  color: #fff;
-}
-
+/* Details Section */
 .details-section {
   flex-grow: 1;
+  /* Ensures the details section takes up the remaining space */
   background-color: #ffffff;
   border-radius: 15px;
   padding: 20px;

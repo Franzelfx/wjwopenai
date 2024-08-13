@@ -70,12 +70,32 @@ export class BackendService {
   }
 
   // Delete specific file
-  deleteFile(projectId: number, filename: string): Observable<any> {
-    console.log(
-      `Calling API to delete file '${filename}' for project with ID ${projectId}`
-    );
+  deleteFile(projectId: number, fileName: string): Observable<any> {
     return this.http.delete<any>(
-      `${this.apiUrl}/projects/${projectId}/input_files/${filename}`
+      `${this.apiUrl}/projects/${projectId}/input_files/${fileName}`
+    );
+  }
+
+  // Delete all input files
+  deleteAllInputFiles(projectId: number): Observable<string> {
+    console.log(
+      `Calling API to delete all input files for project with ID ${projectId}`
+    );
+    return this.http.delete<string>(
+      `${this.apiUrl}/projects/${projectId}/input_files`
+    );
+  }
+
+  uploadFolder(projectId: number, formData: FormData): Observable<any> {
+    return this.http.post<any>(
+      `${this.apiUrl}/projects/${projectId}/upload_folder`,
+      formData
+    );
+  }
+
+  deleteFolder(projectId: number, folderName: string): Observable<any> {
+    return this.http.delete<any>(
+      `${this.apiUrl}/projects/${projectId}/input_files/${folderName}`
     );
   }
 }

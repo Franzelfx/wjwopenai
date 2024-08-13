@@ -1,5 +1,22 @@
 import { Component, OnInit, Input } from '@angular/core';
 import { BackendService } from '../../services/backend.service';
+import { FlatTreeControl } from '@angular/cdk/tree';
+import {
+  MatTreeFlatDataSource,
+  MatTreeFlattener,
+} from '@angular/material/tree';
+
+interface FileNode {
+  name: string;
+  type?: string;
+  children?: FileNode[];
+}
+
+interface ExampleFlatNode {
+  expandable: boolean;
+  name: string;
+  level: number;
+}
 
 @Component({
   selector: 'app-upload',
@@ -8,70 +25,147 @@ import { BackendService } from '../../services/backend.service';
 })
 export class UploadComponent implements OnInit {
   @Input() projectId: number = 0;
-  inputFiles: any[] = [];
-  selectedFileName: string = '';
-  isLoading: boolean = true;
+  folderTree: FileNode[] = [];
+  selectedFolderName: string = '';
+  inputFiles: File[] = [];
+  selectedItem: FileNode | null = null;
+
+  private _transformer = (node: FileNode, level: number) => {
+    return {
+      expandable: !!node.children && node.children.length > 0,
+      name: node.name,
+      level: level,
+    };
+  };
+
+  treeControl = new FlatTreeControl<ExampleFlatNode>(
+    (node) => node.level,
+    (node) => node.expandable
+  );
+
+  treeFlattener = new MatTreeFlattener(
+    this._transformer,
+    (node) => node.level,
+    (node) => node.expandable,
+    (node) => node.children
+  );
+
+  dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
 
   constructor(private backendService: BackendService) {}
 
   ngOnInit(): void {
-    this.loadFiles();
+    console.log('UploadComponent initialized');
+    this.loadFileTree();
   }
 
-  loadFiles(): void {
-    console.log('Fetching input files for project ID:', this.projectId);
+  onFolderSelected(event: any): void {
+    this.inputFiles = Array.from(event.target.files);
+
+    if (this.inputFiles.length > 0) {
+      const pathParts = this.inputFiles[0].webkitRelativePath.split('/');
+      this.selectedFolderName = pathParts[0];
+
+      const folderNode: FileNode = {
+        name: this.selectedFolderName,
+        children: [],
+      };
+      this.folderTree = [folderNode];
+      this.dataSource.data = this.folderTree;
+    }
+
+    console.log('Folder selected:', this.selectedFolderName);
+  }
+
+  uploadFolder(): void {
+    const formData = new FormData();
+    this.inputFiles.forEach((file) =>
+      formData.append('files', file, file.webkitRelativePath)
+    );
+
+    console.log('Uploading folder for project ID:', this.projectId);
+    this.backendService.uploadFolder(this.projectId, formData).subscribe(
+      () => {
+        console.log('Folder uploaded successfully.');
+        this.loadFileTree();
+        this.selectedFolderName = '';
+        this.inputFiles = [];
+      },
+      (error) => {
+        console.error('Failed to upload folder:', error);
+      }
+    );
+  }
+
+  loadFileTree(): void {
+    console.log('Loading file tree for project ID:', this.projectId);
     this.backendService.getFileTree(this.projectId).subscribe(
       (fileTree) => {
-        this.inputFiles = fileTree.input || [];
-        this.isLoading = false;
-
-        console.log('Input files:', this.inputFiles);
-
-        if (this.inputFiles.length === 0) {
-          console.log('No input files found in the project.');
-        }
+        this.folderTree = fileTree.input;
+        this.dataSource.data = this.buildFileTree(this.folderTree, 0);
+        console.log('File tree loaded:', this.folderTree);
       },
       (error) => {
-        console.error('Failed to load input files:', error);
-        this.isLoading = false;
+        console.error('Failed to load file tree:', error);
       }
     );
   }
 
-  onFileSelected(event: any): void {
-    const files: FileList = event.target.files;
-    this.selectedFileName = Array.from(files)
-      .map((file) => file.name)
-      .join(', ');
-    this.inputFiles = Array.from(files);
+  buildFileTree(obj: { [key: string]: any }, level: number): FileNode[] {
+    return Object.keys(obj).reduce<FileNode[]>((accumulator, key) => {
+      const value = obj[key];
+      const node: FileNode = { name: key };
 
-    console.log('Selected files:', this.inputFiles);
-  }
-
-  uploadFiles(): void {
-    const formData = new FormData();
-    this.inputFiles.forEach((file) => formData.append('files', file));
-
-    console.log('Uploading files:', this.inputFiles);
-    this.backendService.uploadFiles(this.projectId, formData).subscribe(
-      () => {
-        console.log('Files uploaded successfully.');
-        this.loadFiles();
-        this.selectedFileName = '';
-      },
-      (error) => {
-        console.error('Failed to upload files:', error);
+      if (value != null && typeof value === 'object') {
+        node.children = this.buildFileTree(value, level + 1);
+        accumulator.push(node);
+      } else {
+        node.type = 'file';
+        accumulator.push(node);
       }
-    );
+
+      return accumulator;
+    }, []);
   }
 
-  deleteFiles(): void {
-    console.log('Delete files logic not implemented yet.');
-    // Implement delete logic here
+  hasChild = (_: number, node: ExampleFlatNode) => node.expandable;
+
+  selectItem(node: FileNode): void {
+    this.selectedItem = node;
+    console.log('Item selected for deletion:', node.name);
   }
 
-  confirmFiles(): void {
-    console.log('Confirm files logic not implemented yet.');
-    // Implement confirm logic here
+  deleteSelectedItem(): void {
+    if (this.selectedItem) {
+      const isFolder =
+        this.selectedItem.children && this.selectedItem.children.length > 0;
+      const itemPath = this.selectedItem.name;
+
+      if (isFolder) {
+        console.log('Deleting folder:', itemPath);
+        this.backendService.deleteFolder(this.projectId, itemPath).subscribe(
+          () => {
+            console.log('Folder deleted successfully.');
+            this.loadFileTree();
+            this.selectedItem = null;
+          },
+          (error) => {
+            console.error('Failed to delete folder:', error);
+          }
+        );
+      } else {
+        console.log('Deleting file:', itemPath);
+        this.backendService.deleteFile(this.projectId, itemPath).subscribe(
+          () => {
+            console.log('File deleted successfully.');
+            this.loadFileTree();
+            this.selectedItem = null;
+          },
+          (error) => {
+            console.error('Failed to delete file:', error);
+          }
+        );
+      }
+    }
   }
 }

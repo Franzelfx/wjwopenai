@@ -61,3 +61,26 @@ def download_output_files(project_id: int, db: Session = Depends(get_db)):
 @router.get("/projects/{project_id}/file_tree")
 def get_file_tree(project_id: int, db: Session = Depends(get_db)):
     return dashboard_crud.get_file_tree(db=db, project_id=project_id)
+
+
+@router.delete("/projects/{project_id}/input_files", response_model=str)
+def delete_all_input_files(project_id: int, db: Session = Depends(get_db)):
+    return dashboard_crud.delete_all_input_files(db=db, project_id=project_id)
+
+
+@router.post("/projects/{project_id}/upload_folder")
+def upload_folder(
+    project_id: int, files: List[UploadFile] = File(...), db: Session = Depends(get_db)
+):
+    return dashboard_crud.upload_folder_to_input(
+        db=db, project_id=project_id, files=files
+    )
+
+
+@router.delete("/projects/{project_id}/input_files/{path}", response_model=str)
+def delete_input_file_or_folder(
+    project_id: int, path: str, db: Session = Depends(get_db)
+):
+    return dashboard_crud.delete_input_file_or_folder(
+        db=db, project_id=project_id, path=path
+    )

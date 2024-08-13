@@ -6,6 +6,8 @@ from models.dashboard import Project
 from schemas.dashboard import ProjectCreate, ProjectUpdate
 from fastapi import HTTPException
 import zipfile
+from fastapi import UploadFile
+
 
 # Define the base directory for the projects
 PROJECTS_BASE_DIR = "projects"
@@ -19,10 +21,15 @@ def create_project(db: Session, project: ProjectCreate):
     project_dir = os.path.join(PROJECTS_BASE_DIR, timestamp)
 
     try:
-        os.makedirs(project_dir)
-        os.makedirs(os.path.join(project_dir, "input"))
-        os.makedirs(os.path.join(project_dir, "output", "fail"))
-        os.makedirs(os.path.join(project_dir, "output", "success"))
+        # Create directories with 777 permissions
+        os.makedirs(project_dir, mode=0o777, exist_ok=True)
+        os.makedirs(os.path.join(project_dir, "input"), mode=0o777, exist_ok=True)
+        os.makedirs(
+            os.path.join(project_dir, "output", "fail"), mode=0o777, exist_ok=True
+        )
+        os.makedirs(
+            os.path.join(project_dir, "output", "success"), mode=0o777, exist_ok=True
+        )
 
         db_project = Project(
             name=project.name,
@@ -125,6 +132,32 @@ def upload_files_to_input(db: Session, project_id: int, files):
     return uploaded_files
 
 
+def upload_folder_to_input(db: Session, project_id: int, files: list[UploadFile]):
+    """
+    Upload a folder to the input directory of a specific project.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    input_dir = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "input")
+    if not os.path.exists(input_dir):
+        os.makedirs(input_dir, mode=0o777, exist_ok=True)
+
+    uploaded_files = []
+    for file in files:
+        # Ensure the directory structure exists with 777 permissions
+        file_path = os.path.join(input_dir, file.filename)
+        os.makedirs(os.path.dirname(file_path), mode=0o777, exist_ok=True)
+
+        # Save the file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        uploaded_files.append(file.filename)
+
+    return uploaded_files
+
+
 def delete_input_file(db: Session, project_id: int, filename: str):
     """
     Delete a specific file from the input directory of a project.
@@ -216,3 +249,50 @@ def get_directory_structure(rootdir: str) -> dict:
         else:
             structure[item] = None
     return structure
+
+
+def delete_all_input_files(db: Session, project_id: int):
+    """
+    Delete all files in the input directory of a specific project.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    input_dir = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "input")
+
+    if not os.path.exists(input_dir):
+        raise HTTPException(status_code=404, detail="Input directory not found")
+
+    try:
+        for filename in os.listdir(input_dir):
+            file_path = os.path.join(input_dir, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        return "All input files deleted successfully."
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete files: {str(e)}")
+
+
+def delete_input_file_or_folder(db: Session, project_id: int, path: str):
+    """
+    Delete a specific file or folder from the input directory of a project.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    input_path = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "input", path)
+    if not os.path.exists(input_path):
+        raise HTTPException(status_code=404, detail="File or folder not found")
+
+    try:
+        if os.path.isfile(input_path):
+            os.remove(input_path)
+        elif os.path.isdir(input_path):
+            shutil.rmtree(input_path)
+        return f"'{path}' successfully deleted from input directory."
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete '{path}': {str(e)}"
+        )
