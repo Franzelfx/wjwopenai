@@ -1,11 +1,9 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
-import { UploadComponent } from './upload/upload.component';
-import { ResultsComponent } from './results/results.component';
+import { ProcessingComponent } from './processing.component';
 
 const routes: Routes = [
-  { path: 'upload', component: UploadComponent },
-  { path: 'results', component: ResultsComponent },
+  { path: '', component: ProcessingComponent }, // Handle the root path of the lazy-loaded module
 ];
 
 @NgModule({

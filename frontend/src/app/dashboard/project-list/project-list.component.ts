@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { BackendService } from '../../services/backend.service';
 import { MatDialog } from '@angular/material/dialog';
 import { EditProjectDialogComponent } from '../edit-project-dialog/edit-project-dialog.component';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-project-list',
@@ -13,7 +14,8 @@ export class ProjectListComponent implements OnInit {
 
   constructor(
     private backendService: BackendService,
-    public dialog: MatDialog
+    public dialog: MatDialog,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -34,7 +36,7 @@ export class ProjectListComponent implements OnInit {
   openAddProjectDialog(): void {
     const dialogRef = this.dialog.open(EditProjectDialogComponent, {
       width: '250px',
-      data: { name: '', description: '' }, // Empty data for adding a new project
+      data: { name: '', description: '' },
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -83,5 +85,10 @@ export class ProjectListComponent implements OnInit {
         }
       );
     }
+  }
+
+  goToProcessing(projectId: number): void {
+    console.log('Navigating to processing page for project ID:', projectId);
+    this.router.navigate(['/processing', projectId]);
   }
 }

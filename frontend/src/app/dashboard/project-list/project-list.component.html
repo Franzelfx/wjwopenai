@@ -4,14 +4,14 @@
     <button class="add-project-button" (click)="openAddProjectDialog()">+</button>
   </div>
 
-  <div class="project-card" *ngFor="let project of projects">
+  <div class="project-card" *ngFor="let project of projects" (click)="goToProcessing(project.id)">
     <div class="project-info">
       <h3>{{ project.name }}</h3>
       <p>Erstellt: {{ project.created_at }}</p>
     </div>
     <div class="project-actions">
-      <button class="edit-button" (click)="editProject(project)">Editieren</button>
-      <button class="delete-button" (click)="deleteProject(project.id)">Löschen</button>
+      <button class="edit-button" (click)="editProject(project); $event.stopPropagation()">Editieren</button>
+      <button class="delete-button" (click)="deleteProject(project.id); $event.stopPropagation()">Löschen</button>
     </div>
   </div>
 </div>

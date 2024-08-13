@@ -1,1 +1,13 @@
-<p>upload works!</p>
+<div class="sidebar">
+  <h3>Images</h3>
+  <div class="image-list">
+    <div *ngFor="let file of inputFiles">{{ file.name }}</div>
+  </div>
+  <div class="upload-section">
+    <input type="file" multiple (change)="onFileSelected($event)" />
+    <div class="file-name">{{ selectedFileName || 'Keine ausgewählt' }}</div>
+    <button (click)="uploadFiles()">Hochladen</button>
+    <button (click)="deleteFiles()">Löschen</button>
+    <button (click)="confirmFiles()">Bestätigen</button>
+  </div>
+</div>

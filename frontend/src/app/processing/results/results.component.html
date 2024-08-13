@@ -1,1 +1,11 @@
-<p>results works!</p>
+<div class="results-section">
+  <h3>Success</h3>
+  <div *ngIf="isLoading">Loading...</div>
+  <div *ngIf="!isLoading && successFiles.length === 0">No success files found.</div>
+  <div *ngFor="let file of successFiles">{{ file.name }}</div>
+
+  <h3>Fail</h3>
+  <div *ngIf="isLoading">Loading...</div>
+  <div *ngIf="!isLoading && failFiles.length === 0">No failed files found.</div>
+  <div *ngFor="let file of failFiles">{{ file.name }}</div>
+</div>
