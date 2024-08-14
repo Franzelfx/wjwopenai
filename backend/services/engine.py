@@ -1,9 +1,10 @@
 import os
 import json
 import datetime
+import base64
+import requests
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-import openai
 from sqlalchemy.orm import Session
 from models.processing import ProcessingStatus, StatusEnum
 from models.dashboard import Project
@@ -11,10 +12,14 @@ from loguru import logger
 
 # Constants
 SUPPORTED_IMAGE_FORMATS = [".png", ".jpg", ".jpeg", ".tif", ".tiff"]
-OPENAI_API_KEY = "your_openai_api_key_here"
+OPENAI_API_KEY = "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"
+OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
 # Configure OpenAI API key
-openai.api_key = OPENAI_API_KEY
+headers = {
+    "Authorization": f"Bearer {OPENAI_API_KEY}",
+    "Content-Type": "application/json"
+}
 
 class OCRProcessor:
     def __init__(self, project_id: int, db: Session):
@@ -23,7 +28,6 @@ class OCRProcessor:
         self.input_dir = f"projects/{self.project.directory_name}/input"
         self.success_dir = f"projects/{self.project.directory_name}/output/success"
         self.fail_dir = f"projects/{self.project.directory_name}/output/fail"
-        self.prompt_file = os.path.join(self.input_dir, "prompt.md")
         self.processing_status = self.get_processing_status(project_id)
         self.update_processing_status(StatusEnum.IN_PROGRESS, 0, start_time=datetime.datetime.utcnow())
         logger.info(f"OCRProcessor initialized for project {self.project.directory_name}")
@@ -56,15 +60,6 @@ class OCRProcessor:
         self.db.commit()
         self.db.refresh(self.processing_status)
 
-    def read_prompt(self) -> str:
-        logger.debug(f"Reading prompt from {self.prompt_file}")
-        if not os.path.exists(self.prompt_file):
-            logger.error("Prompt file not found.")
-            raise FileNotFoundError("Prompt file not found.")
-        
-        with open(self.prompt_file, "r", encoding="utf-8") as file:
-            return file.read()
-
     def list_image_files(self) -> List[str]:
         logger.debug(f"Listing image files in {self.input_dir}")
         image_files = []
@@ -81,8 +76,6 @@ class OCRProcessor:
 
     def process_images(self):
         images = self.list_image_files()
-        prompt = self.read_prompt()
-
         total_files = len(images)
         logger.info(f"Total images found for processing: {total_files}")
         
@@ -94,7 +87,7 @@ class OCRProcessor:
         for index, image_path in enumerate(images):
             logger.info(f"Processing image {index + 1}/{total_files}: {image_path}")
             try:
-                response_json = self.call_openai_api(image_path, prompt)
+                response_json = self.call_openai_api(image_path)
                 if response_json:
                     self.save_output(self.success_dir, Path(image_path).stem, response_json)
                     logger.info(f"Successfully processed image: {image_path}")
@@ -114,16 +107,43 @@ class OCRProcessor:
         self.update_processing_status(StatusEnum.COMPLETED, 100, end_time=datetime.datetime.utcnow())
         logger.info("OCR processing completed successfully")
 
-    def call_openai_api(self, image_path: str, prompt: str) -> Optional[Dict[str, Any]]:
+    def call_openai_api(self, image_path: str) -> Optional[Dict[str, Any]]:
         logger.debug(f"Calling OpenAI API for image {image_path}")
+        
+        # Encode the image in base64
         with open(image_path, "rb") as image_file:
-            response = openai.Image.create(prompt=prompt, n=1, size="1024x1024", file=image_file)
+            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
 
-        # Assuming the response returns a JSON-like structure
-        try:
-            return response.get("data", [])[0]
-        except (KeyError, IndexError):
-            logger.error(f"Unexpected response format from OpenAI API for image {image_path}")
+        # Prepare the payload for OpenAI API
+        payload = {
+            "model": "gpt-4o-mini",  # Adjust the model according to your needs
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "What’s in this image?"},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "max_tokens": 300  # Adjust tokens as needed
+        }
+
+        response = requests.post(OPENAI_API_URL, headers=headers, json=payload)
+
+        if response.status_code == 200:
+            try:
+                return response.json()
+            except json.JSONDecodeError as e:
+                logger.error(f"Error decoding JSON response: {str(e)}")
+                return None
+        else:
+            logger.error(f"OpenAI API request failed with status code {response.status_code}: {response.text}")
             return None
 
     def save_output(self, output_dir: str, filename: str, data: Dict[str, Any]):

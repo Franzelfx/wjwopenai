@@ -1,5 +1,6 @@
 import db  # This ensures db.py is executed, which includes table creation
 from fastapi import FastAPI
+from dotenv import load_dotenv
 from routers.processing import router as processing_router
 from routers.dashboard import router as dashboard_router
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +16,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+load_dotenv()  # Load environment variables from .env file
 
 # Include the dashboard router
 app.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])

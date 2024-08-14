@@ -146,9 +146,6 @@ export class BackendService {
 
   // Get processing status as SSE (Server-Sent Events)
   getProcessingStatusSSE(projectId: number): Observable<MessageEvent> {
-    console.log(
-      `Calling API to get processing status (SSE) for project with ID ${projectId}`
-    );
     return new Observable<MessageEvent>((observer) => {
       const eventSource = new EventSource(
         `${this.processingApiUrl}/status/project/${projectId}/sse`
