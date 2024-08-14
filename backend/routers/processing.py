@@ -10,6 +10,7 @@ from schemas.processing import ProcessingStatusResponse
 from models.processing import StatusEnum
 from loguru import logger
 from services.engine import OCRProcessor  # Import the OCRProcessor class
+from models.processing import ProcessingStatus
 
 router = APIRouter()
 
@@ -84,6 +85,8 @@ def stop_ocr_process(project_id: int, db: Session = Depends(get_db)):
     logger.info(f"Stopping OCR process for project {project_id}")
     try:
         ocr_processor = OCRProcessor.get_processor(project_id)
+        if not ocr_processor:
+            raise HTTPException(status_code=404, detail="OCR Processor not found for this project.")
         ocr_processor.stop_processing()
         return {"status": "success", "message": "OCR process stopped successfully"}
     except Exception as e:
@@ -95,6 +98,8 @@ def resume_ocr_process(project_id: int, db: Session = Depends(get_db)):
     logger.info(f"Resuming OCR process for project {project_id}")
     try:
         ocr_processor = OCRProcessor.get_processor(project_id)
+        if not ocr_processor:
+            raise HTTPException(status_code=404, detail="OCR Processor not found for this project.")
         ocr_processor.resume_processing()
         return {"status": "success", "message": "OCR process resumed successfully"}
     except Exception as e:

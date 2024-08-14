@@ -2,10 +2,8 @@ import os
 import json
 from typing import Dict, Any
 from loguru import logger
-from pathlib import Path
 import re
-import io
-import csv
+from typing import Optional
 
 class JSONValidator:
     @staticmethod
@@ -46,6 +44,10 @@ class JSONValidator:
         :param content: The content to be decoded.
         :return: The decoded string.
         """
+        if content is None:
+            logger.error("No content provided to decode.")
+            return ""
+
         try:
             return content.decode('utf-8')
         except UnicodeDecodeError:
@@ -68,7 +70,7 @@ class JSONValidator:
             return False
 
     @staticmethod
-    def save_cleaned_json(output_dir: str, filename: str, content: bytes, success: bool = True) -> str:
+    def save_cleaned_json(output_dir: str, filename: str, content: Optional[bytes], success: bool = True) -> str:
         """
         Saves the cleaned JSON content.
         :param output_dir: The base directory for output files.
@@ -77,12 +79,20 @@ class JSONValidator:
         :param success: A flag to indicate if the file is to be saved in the success or fail directory.
         :return: The path to the saved JSON file.
         """
+        if content is None:
+            logger.error(f"Cannot save JSON for {filename}. No content provided.")
+            return ""
+
         decoded_content = JSONValidator.try_decode_content(content)
         cleaned_content = JSONValidator.clean_json_content(decoded_content)
         
         # Decode any Unicode escape sequences in the JSON data
-        json_data = json.loads(cleaned_content)
-        decoded_json_data = JSONValidator.decode_unicode_in_json(json_data)
+        try:
+            json_data = json.loads(cleaned_content)
+            decoded_json_data = JSONValidator.decode_unicode_in_json(json_data)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to decode JSON for {filename}: {str(e)}")
+            return ""
 
         # Determine the directory to save the cleaned JSON
         sub_dir = "success" if success else "fail"

@@ -66,13 +66,15 @@ def upload_folder(
         db=db, project_id=project_id, files=files
     )
 
-@router.delete("/projects/{project_id}/input_files/{path}", response_model=str)
-def delete_input_file_or_folder(
-    project_id: int, path: str, db: Session = Depends(get_db)
+@router.get("/projects/{project_id}/download_output", response_class=FileResponse)
+def download_output_files(
+    project_id: int,
+    db: Session = Depends(get_db),
+    convert_to_csv: bool = Query(False, description="Convert JSON to CSV before downloading")
 ):
-    return dashboard_crud.delete_input_file_or_folder(
-        db=db, project_id=project_id, path=path
-    )
+    zip_filepath = dashboard_crud.download_output_files(db=db, project_id=project_id, convert_to_csv=convert_to_csv)
+    return FileResponse(zip_filepath, filename=os.path.basename(zip_filepath))
+
 
 @router.get("/projects/{project_id}/download_success_output", response_class=FileResponse)
 def download_success_output_files(
@@ -96,3 +98,4 @@ def download_fail_output_files(
         db=db, project_id=project_id, convert_to_csv=convert_to_csv
     )
     return FileResponse(zip_filepath, filename=os.path.basename(zip_filepath))
+
