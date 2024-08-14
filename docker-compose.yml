@@ -6,7 +6,7 @@ services:
     env_file:
       - .env
     ports:
-      - "8080:8000"
+      - "6006:8000"  # FastAPI backend exposed on port 6006
     volumes:
       - ./backend:/app
     networks:
@@ -17,7 +17,7 @@ services:
       context: ./frontend
     container_name: angular_app
     ports:
-      - "8089:80"  # Change the port mapping here
+      - "4200:80"  # Map host port 4200 to container port 80
     networks:
       - app-network
 

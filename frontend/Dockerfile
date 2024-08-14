@@ -17,8 +17,11 @@ RUN npm run build --prod
 # Stage 2: Serve the app using Nginx
 FROM nginx:alpine
 
-# Copy the built Angular app from the previous stage to the Nginx web directory
+# Copy the built Angular app from the previous stage
 COPY --from=build-stage /app/dist/frontend /usr/share/nginx/html
+
+# Copy custom nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80 to the outside world
 EXPOSE 80
