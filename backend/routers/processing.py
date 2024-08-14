@@ -78,3 +78,25 @@ def start_ocr_process(project_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"OCR process failed for project {project_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"OCR process failed: {str(e)}")
+
+@router.post("/stop-ocr/{project_id}")
+def stop_ocr_process(project_id: int, db: Session = Depends(get_db)):
+    logger.info(f"Stopping OCR process for project {project_id}")
+    try:
+        ocr_processor = OCRProcessor(project_id, db)
+        ocr_processor.stop_processing()
+        return {"status": "success", "message": "OCR process stopped successfully"}
+    except Exception as e:
+        logger.error(f"Failed to stop OCR process for project {project_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to stop OCR process: {str(e)}")
+
+@router.post("/resume-ocr/{project_id}")
+def resume_ocr_process(project_id: int, db: Session = Depends(get_db)):
+    logger.info(f"Resuming OCR process for project {project_id}")
+    try:
+        ocr_processor = OCRProcessor(project_id, db)
+        ocr_processor.resume_processing()
+        return {"status": "success", "message": "OCR process resumed successfully"}
+    except Exception as e:
+        logger.error(f"Failed to resume OCR process for project {project_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to resume OCR process: {str(e)}")

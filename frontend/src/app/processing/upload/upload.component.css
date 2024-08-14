@@ -140,3 +140,14 @@
   font-style: italic;
   color: #666;
 }
+
+.start-ocr-button {
+  background-color: #2196f3;
+  color: #fff;
+  margin-top: 10px;
+}
+
+.start-ocr-button:hover {
+  background-color: #1976d2;
+  box-shadow: 0 4px 10px rgba(33, 150, 243, 0.3);
+}

@@ -168,4 +168,18 @@ export class UploadComponent implements OnInit {
       }
     }
   }
+
+  startOCR(): void {
+    console.log('Starting OCR process for project ID:', this.projectId);
+    this.backendService.startOCR(this.projectId).subscribe(
+      (response) => {
+        console.log('OCR process started successfully:', response);
+        alert('OCR process started successfully');
+      },
+      (error) => {
+        console.error('Failed to start OCR process:', error);
+        alert('Failed to start OCR process');
+      }
+    );
+  }
 }

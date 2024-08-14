@@ -163,4 +163,12 @@ export class BackendService {
       return () => eventSource.close();
     });
   }
+
+  startOCR(projectId: number): Observable<any> {
+    console.log(`Calling API to start OCR for project with ID ${projectId}`);
+    return this.http.post<any>(
+      `${this.processingApiUrl}/start-ocr/${projectId}`,
+      {}
+    );
+  }
 }

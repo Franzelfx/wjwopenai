@@ -1,0 +1,1 @@
+Bitte gib den kompletten Inhalt des Bildes als json Format zurück, bitte gib nur json zurück, keine weiteren Informationen. Bitte prüfe vor der Ausgabe, ob die Adresse existiert.
