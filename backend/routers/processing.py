@@ -1,4 +1,3 @@
-# processing router for handling processing status
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from services import processing_crud
@@ -10,6 +9,7 @@ import json
 from schemas.processing import ProcessingStatusResponse
 from models.processing import StatusEnum
 from loguru import logger
+from services.engine import OCRProcessor  # Import the OCRProcessor class
 
 router = APIRouter()
 
@@ -66,3 +66,15 @@ async def status_sse_by_project(project_id: int, db: Session = Depends(get_db)):
             time.sleep(2)  # Adjust based on how often you want updates
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@router.post("/start-ocr/{project_id}")
+def start_ocr_process(project_id: int, db: Session = Depends(get_db)):
+    logger.info(f"Starting OCR process for project {project_id}")
+    try:
+        ocr_processor = OCRProcessor(project_id, db)
+        ocr_processor.process_images()
+        logger.info(f"OCR process completed successfully for project {project_id}")
+        return {"status": "success", "message": "OCR process completed successfully"}
+    except Exception as e:
+        logger.error(f"OCR process failed for project {project_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"OCR process failed: {str(e)}")
