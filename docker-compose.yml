@@ -17,7 +17,7 @@ services:
       context: ./frontend
     container_name: angular_app
     ports:
-      - "8080:80"  # Change the port mapping here
+      - "8089:80"  # Change the port mapping here
     networks:
       - app-network
 
