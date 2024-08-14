@@ -1,0 +1,18 @@
+<div class="progress-container">
+  <div
+    class="progress-bar"
+    [style.width.%]="progress"
+  ></div>
+  <p class="progress-text">{{ progress }}% Complete</p>
+  <span
+    class="progress-status"
+    [ngClass]="{
+      'pending': status === 'PENDING',
+      'in-progress': status === 'IN_PROGRESS',
+      'completed': status === 'COMPLETED',
+      'failed': status === 'FAILED'
+    }"
+  >
+    {{ status }}
+  </span>
+</div>

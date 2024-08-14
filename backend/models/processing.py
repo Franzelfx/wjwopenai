@@ -15,7 +15,7 @@ class ProcessingStatus(Base):
     __tablename__ = "processing_statuses"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     status = Column(Enum(StatusEnum), default=StatusEnum.PENDING, nullable=False)
     start_time = Column(DateTime)
     end_time = Column(DateTime, nullable=True)

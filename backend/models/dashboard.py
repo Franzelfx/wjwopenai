@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy.orm import relationship, backref
 from db import Base
 import datetime
-from sqlalchemy.orm import relationship
 
 class Project(Base):
     __tablename__ = "projects"
@@ -12,8 +12,11 @@ class Project(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     directory_name = Column(String, nullable=False)
 
-    processing_statuses = relationship("ProcessingStatus", back_populates="project")
+    processing_statuses = relationship(
+        "ProcessingStatus",
+        back_populates="project",
+        cascade="all, delete-orphan"  # This will delete associated ProcessingStatus records when the project is deleted
+    )
 
     def __repr__(self):
         return f"<Project(name={self.name}, created_at={self.created_at})>"
-

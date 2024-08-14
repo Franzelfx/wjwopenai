@@ -7,6 +7,7 @@ import { Observable } from 'rxjs';
 })
 export class BackendService {
   public apiUrl = 'http://localhost:8000/dashboard';
+  public processingApiUrl = 'http://localhost:8000/processing'; // Base URL for processing endpoints
 
   constructor(private http: HttpClient) {
     console.log('BackendService initialized');
@@ -58,7 +59,7 @@ export class BackendService {
     );
   }
 
-  // **New Method**: Download success output as zip
+  // Download success output as zip
   downloadSuccessOutput(projectId: number): Observable<Blob> {
     console.log(
       `Calling API to download successful output for project with ID ${projectId}`
@@ -71,7 +72,7 @@ export class BackendService {
     );
   }
 
-  // **New Method**: Download fail output as zip
+  // Download fail output as zip
   downloadFailOutput(projectId: number): Observable<Blob> {
     console.log(
       `Calling API to download failed output for project with ID ${projectId}`
@@ -94,6 +95,9 @@ export class BackendService {
 
   // Delete specific file
   deleteFile(projectId: number, fileName: string): Observable<any> {
+    console.log(
+      `Calling API to delete file: ${fileName} for project with ID ${projectId}`
+    );
     return this.http.delete<any>(
       `${this.apiUrl}/projects/${projectId}/input_files/${fileName}`
     );
@@ -110,6 +114,9 @@ export class BackendService {
   }
 
   uploadFolder(projectId: number, formData: FormData): Observable<any> {
+    console.log(
+      `Calling API to upload folder for project with ID ${projectId}`
+    );
     return this.http.post<any>(
       `${this.apiUrl}/projects/${projectId}/upload_folder`,
       formData
@@ -117,8 +124,46 @@ export class BackendService {
   }
 
   deleteFolder(projectId: number, folderName: string): Observable<any> {
+    console.log(
+      `Calling API to delete folder: ${folderName} for project with ID ${projectId}`
+    );
     return this.http.delete<any>(
       `${this.apiUrl}/projects/${projectId}/input_files/${folderName}`
     );
+  }
+
+  // **New Methods for Processing**
+
+  // Get processing status by project ID
+  getProcessingStatus(projectId: number): Observable<any> {
+    console.log(
+      `Calling API to get processing status for project with ID ${projectId}`
+    );
+    return this.http.get<any>(
+      `${this.processingApiUrl}/status/project/${projectId}`
+    );
+  }
+
+  // Get processing status as SSE (Server-Sent Events)
+  getProcessingStatusSSE(projectId: number): Observable<MessageEvent> {
+    console.log(
+      `Calling API to get processing status (SSE) for project with ID ${projectId}`
+    );
+    return new Observable<MessageEvent>((observer) => {
+      const eventSource = new EventSource(
+        `${this.processingApiUrl}/status/project/${projectId}/sse`
+      );
+
+      eventSource.onmessage = (event) => {
+        observer.next(event);
+      };
+
+      eventSource.onerror = (error) => {
+        observer.error(error);
+        eventSource.close();
+      };
+
+      return () => eventSource.close();
+    });
   }
 }

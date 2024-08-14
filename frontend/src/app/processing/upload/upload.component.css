@@ -23,6 +23,13 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
+.header-line {
+  border-bottom: 2px solid black;
+  margin-bottom: 20px;
+  margin-top: -10px;
+  /* Adjust spacing as needed */
+}
+
 .file-tree-container {
   max-height: 400px;
   overflow-y: auto;

@@ -1,117 +1,95 @@
 .processing-container {
   display: flex;
-  height: 100vh;
-  /* Take up full screen height */
+  flex-direction: row;
+  /* Arrange items side by side */
+  height: calc(100vh - 40px);
+  /* Full height minus the progress bar height */
   padding: 20px;
   box-sizing: border-box;
   gap: 20px;
   width: 100%;
-  /* Ensures the container takes up the full width */
-  max-width: 100%;
-  /* Allow full width usage */
+  max-width: 50%;
   margin: 0;
-  /* Remove auto margin to use full space */
 }
 
-/* Sidebar for File Upload and Selection */
-.sidebar {
-  width: 25%;
-  /* Allocate 25% of the width to the sidebar */
+.upload-section {
+  max-width: 50%;
+  /* Make the upload section take up 30% of the width */
   background-color: #ffffff;
   border-radius: 15px;
   padding: 20px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  border: 2px solid black;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.file-tree-container {
-  max-height: 400px;
-  overflow-y: auto;
-  margin-bottom: 20px;
-}
-
-.upload-section {
+.results-section {
+  width: 70%;
+  /* Make the results section take up 70% of the width */
+  background-color: #ffffff;
+  border-radius: 15px;
+  padding: 20px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.upload-label {
+.progress-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
   width: 100%;
-  padding: 10px;
-  border: 2px solid black;
-  border-radius: 5px;
-  background-color: #f5f5f5;
-  cursor: pointer;
-  text-align: center;
-}
-
-.upload-label:hover {
+  height: 40px;
   background-color: #e0e0e0;
+  border-radius: 0;
+  overflow: hidden;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
 }
 
-.upload-section input[type="file"] {
-  display: none;
+.progress-bar {
+  height: 100%;
+  background-color: #4caf50;
+  width: 0;
+  transition: width 0.3s ease-in-out;
 }
 
-.upload-section button {
-  width: 100%;
-  padding: 10px;
-  border: 2px solid black;
-  border-radius: 5px;
-  cursor: pointer;
-  text-align: center;
+.progress-text {
+  margin-left: 10px;
+  font-size: 16px;
+  color: #333;
   font-weight: bold;
 }
 
-.upload-button {
+.progress-status {
+  margin-left: auto;
+  /* Pushes the status to the right side */
+  font-size: 14px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-weight: bold;
+}
+
+.progress-status.pending {
+  background-color: #ffeb3b;
+  color: #333;
+}
+
+.progress-status.in-progress {
+  background-color: #2196f3;
+  color: #fff;
+}
+
+.progress-status.completed {
   background-color: #4caf50;
   color: #fff;
 }
 
-.delete-button {
-  width: 100%;
-  padding: 10px;
-  border: 2px solid black;
-  border-radius: 5px;
+.progress-status.failed {
   background-color: #f44336;
   color: #fff;
-  cursor: pointer;
-  text-align: center;
-  font-weight: bold;
-}
-
-/* Details Section */
-.details-section {
-  flex-grow: 1;
-  /* Ensures the details section takes up the remaining space */
-  background-color: #ffffff;
-  border-radius: 15px;
-  padding: 20px;
-  box-sizing: border-box;
-  border: 2px solid black;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-}
-
-.details-section img {
-  width: 100%;
-  height: auto;
-  margin-bottom: 20px;
-  border: 2px solid black;
-  border-radius: 5px;
-}
-
-.details {
-  flex-grow: 1;
-  border: 2px solid black;
-  border-radius: 5px;
-  padding: 10px;
-  overflow-y: auto;
 }
