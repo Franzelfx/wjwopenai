@@ -16,7 +16,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Base class for creating ORM models
 Base = declarative_base()
 
-
 # Dependency for getting the DB session
 def get_db():
     db = SessionLocal()
@@ -25,10 +24,9 @@ def get_db():
     finally:
         db.close()
 
-
-# Import your models here to ensure they are registered with the Base
-from models.dashboard import Project  # Ensure the Project model is imported
-from models.processing import Image, ProcessingResult  # Import additional models
+# Import the models to ensure they are registered with the Base
+from models.dashboard import Project  # Import the Project model
+from models.processing import ProcessingStatus  # Import the ProcessingStatus model
 
 # Create all tables in the database
 Base.metadata.create_all(bind=engine)

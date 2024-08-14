@@ -1,40 +1,30 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum, DateTime
+from sqlalchemy import Column, Integer, String, Text, Enum, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 import enum
 import datetime
-from db import Base  # Import Base from db.py instead of redefining it
+from db import Base
+from models.dashboard import Project
 
+class StatusEnum(enum.Enum):
+    PENDING = "PENDING"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
 
-class ProcessingStatus(enum.Enum):
-    SUCCESS = "success"
-    FAIL = "fail"
-
-
-class Image(Base):
-    __tablename__ = "images"
-
-    id = Column(Integer, primary_key=True, index=True)
-    filename = Column(String, unique=True, nullable=False)
-    uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
-    processing_result = relationship(
-        "ProcessingResult", back_populates="image", uselist=False
-    )
-
-
-class ProcessingResult(Base):
-    __tablename__ = "processing_results"
+class ProcessingStatus(Base):
+    __tablename__ = "processing_statuses"
 
     id = Column(Integer, primary_key=True, index=True)
-    image_id = Column(Integer, ForeignKey("images.id"), nullable=False)
-    status = Column(Enum(ProcessingStatus), nullable=False)
-    error_description = Column(Text, nullable=True)
-    recognized_data = Column(Text, nullable=True)
-    image = relationship("Image", back_populates="processing_result")
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    status = Column(Enum(StatusEnum), default=StatusEnum.PENDING, nullable=False)
+    start_time = Column(DateTime)
+    end_time = Column(DateTime, nullable=True)
+    progress = Column(Integer, default=0)  # percentage
+    processed_files = Column(Integer, default=0)
+    total_files = Column(Integer, nullable=False)
+    processed_file_names = Column(Text, default="")  # Comma-separated list of filenames
 
+    project = relationship("Project", back_populates="processing_statuses")
 
-class PromptFile(Base):
-    __tablename__ = "prompt_files"
-
-    id = Column(Integer, primary_key=True, index=True)
-    filename = Column(String, unique=True, nullable=False)
-    uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
+    def __repr__(self):
+        return f"<ProcessingStatus(project_id={self.project_id}, status={self.status}, progress={self.progress})>"

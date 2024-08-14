@@ -1,3 +1,4 @@
+# dashboard_crud.py contains the CRUD operations for the dashboard endpoints.
 import os
 import shutil
 from datetime import datetime
@@ -6,6 +7,7 @@ from models.dashboard import Project
 from schemas.dashboard import ProjectCreate, ProjectUpdate
 from fastapi import HTTPException
 import zipfile
+from models.processing import ProcessingStatus, StatusEnum
 from fastapi import UploadFile
 
 
@@ -14,9 +16,6 @@ PROJECTS_BASE_DIR = "projects"
 
 
 def create_project(db: Session, project: ProjectCreate):
-    """
-    Create a new project in the database and set up the corresponding directories.
-    """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     project_dir = os.path.join(PROJECTS_BASE_DIR, timestamp)
 
@@ -24,17 +23,10 @@ def create_project(db: Session, project: ProjectCreate):
         # Ensure umask does not interfere with directory creation permissions
         previous_umask = os.umask(0)
         try:
-            # Create directories with 777 permissions
             os.makedirs(project_dir, mode=0o777, exist_ok=True)
             os.makedirs(os.path.join(project_dir, "input"), mode=0o777, exist_ok=True)
-            os.makedirs(
-                os.path.join(project_dir, "output", "fail"), mode=0o777, exist_ok=True
-            )
-            os.makedirs(
-                os.path.join(project_dir, "output", "success"),
-                mode=0o777,
-                exist_ok=True,
-            )
+            os.makedirs(os.path.join(project_dir, "output", "fail"), mode=0o777, exist_ok=True)
+            os.makedirs(os.path.join(project_dir, "output", "success"), mode=0o777, exist_ok=True)
         finally:
             os.umask(previous_umask)
 
@@ -46,7 +38,17 @@ def create_project(db: Session, project: ProjectCreate):
         db.add(db_project)
         db.commit()
         db.refresh(db_project)
-        print(f"Project {db_project.name} committed to the database.")
+
+        # Automatically create a ProcessingStatus object for the new project
+        db_status = ProcessingStatus(
+            project_id=db_project.id,
+            status=StatusEnum.PENDING,
+            total_files=0  # This should be updated once files are added
+        )
+        db.add(db_status)
+        db.commit()
+        db.refresh(db_status)
+        print(f"Project {db_project.name} committed to the database with status {db_status.status}.")
 
     except Exception as e:
         db.rollback()
