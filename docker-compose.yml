@@ -1,0 +1,26 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: fastapi_app
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: angular_app
+    ports:
+      - "8080:80"  # Change the port mapping here
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
