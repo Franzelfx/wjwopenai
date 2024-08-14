@@ -40,6 +40,19 @@ class JSONValidator:
             return json_data
 
     @staticmethod
+    def try_decode_content(content: bytes) -> str:
+        """
+        Tries to decode content using utf-8, falls back to ISO-8859-1 if utf-8 fails.
+        :param content: The content to be decoded.
+        :return: The decoded string.
+        """
+        try:
+            return content.decode('utf-8')
+        except UnicodeDecodeError:
+            logger.warning("UTF-8 decoding failed, trying ISO-8859-1")
+            return content.decode('ISO-8859-1')
+
+    @staticmethod
     def is_valid_json(content: str) -> bool:
         """
         Validates if the given content is a valid JSON string after cleaning.
@@ -55,68 +68,31 @@ class JSONValidator:
             return False
 
     @staticmethod
-    def json_to_csv(json_data: Dict[str, Any]) -> str:
+    def save_cleaned_json(output_dir: str, filename: str, content: bytes, success: bool = True) -> str:
         """
-        Converts JSON data to a CSV string.
-        :param json_data: The JSON data (as a dictionary) to convert to CSV.
-        :return: A string representing the CSV content.
-        """
-        # Create an in-memory text stream
-        output = io.StringIO()
-        csv_writer = csv.writer(output)
-
-        # Assume that the JSON data is a dictionary with a consistent structure
-        if isinstance(json_data, list):
-            # If the JSON data is a list, assume it's a list of dictionaries
-            headers = json_data[0].keys()
-            csv_writer.writerow(headers)
-            for entry in json_data:
-                csv_writer.writerow(entry.values())
-        elif isinstance(json_data, dict):
-            # If it's a dictionary, write keys as headers and values as a single row
-            headers = json_data.keys()
-            csv_writer.writerow(headers)
-            csv_writer.writerow(json_data.values())
-        else:
-            raise ValueError("Unsupported JSON format for CSV conversion")
-
-        # Get the CSV content as a string
-        csv_content = output.getvalue()
-        output.close()
-
-        return csv_content
-
-    @staticmethod
-    def save_cleaned_json(output_dir: str, filename: str, content: str, convert_to_csv=False):
-        """
-        Saves the cleaned JSON content or converts it to CSV before saving.
+        Saves the cleaned JSON content.
         :param output_dir: The base directory for output files.
         :param filename: The name of the file to save.
         :param content: The JSON content to be saved.
-        :param convert_to_csv: A flag to convert JSON content to CSV before saving.
+        :param success: A flag to indicate if the file is to be saved in the success or fail directory.
+        :return: The path to the saved JSON file.
         """
-        cleaned_content = JSONValidator.clean_json_content(content)
+        decoded_content = JSONValidator.try_decode_content(content)
+        cleaned_content = JSONValidator.clean_json_content(decoded_content)
         
-        # Convert the cleaned content back to a dictionary to save it as a JSON file
-        json_data = json.loads(cleaned_content)
-
         # Decode any Unicode escape sequences in the JSON data
+        json_data = json.loads(cleaned_content)
         decoded_json_data = JSONValidator.decode_unicode_in_json(json_data)
 
-        # Determine the directory to save the cleaned JSON or CSV
-        full_output_dir = os.path.join(output_dir, "success")
+        # Determine the directory to save the cleaned JSON
+        sub_dir = "success" if success else "fail"
+        full_output_dir = os.path.join(output_dir, sub_dir)
         os.makedirs(full_output_dir, exist_ok=True)
+
+        # Save as JSON
+        output_path = os.path.join(full_output_dir, f"{filename}.json")
+        with open(output_path, "w", encoding="utf-8") as json_file:
+            json.dump(decoded_json_data, json_file, indent=4, ensure_ascii=False)
         
-        if convert_to_csv:
-            # Convert to CSV
-            csv_content = JSONValidator.json_to_csv(decoded_json_data)
-            output_path = os.path.join(full_output_dir, f"{filename}.csv")
-            with open(output_path, "w", encoding="utf-8") as csv_file:
-                csv_file.write(csv_content)
-        else:
-            # Save as JSON
-            output_path = os.path.join(full_output_dir, f"{filename}.json")
-            with open(output_path, "w", encoding="utf-8") as json_file:
-                json.dump(decoded_json_data, json_file, indent=4, ensure_ascii=False)
-        
-        logger.info(f"File saved to {output_path}")
+        logger.info(f"JSON file saved to {output_path}")
+        return output_path

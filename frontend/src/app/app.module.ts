@@ -10,6 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ResultsModule } from './processing/results/results.module';
+// MAt Checkbox is not a module, it is a component
 
 
 @NgModule({

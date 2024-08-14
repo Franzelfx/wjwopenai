@@ -13,7 +13,7 @@ from services.validator import JSONValidator
 
 # Constants
 SUPPORTED_IMAGE_FORMATS = [".png", ".jpg", ".jpeg", ".tif", ".tiff"]
-OPENAI_API_KEY = "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"
+OPENAI_API_KEY = "sk-proj-TWlyfDkLfYNs7LvFbz8gya-TuT3BlbkFJD78v4Ey4PldLzG4TUPSrs89wyh14_2BAcFisoK1chDRyVEfJxePiTRS7kA"
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
 # Configure OpenAI API key
@@ -23,19 +23,41 @@ headers = {
 }
 
 class OCRProcessor:
+    _processors = {}  # Class-level dictionary to store processors by project_id
+
     def __init__(self, project_id: int, db: Session):
         self.db = db
-        self.project = self.get_project(project_id)
+        self.project_id = project_id
+        self.project = self._get_project(project_id)
         self.input_dir = f"projects/{self.project.directory_name}/input"
         self.output_dir = f"projects/{self.project.directory_name}/output"
         self.prompt_file_path = f"prompt.md"
-        self.processing_status = self.get_processing_status(project_id)
+        self.processing_status = self._get_processing_status(project_id)
         self._stop_flag = False
         self.current_index = 0  # Track the current index for resuming
-        self.update_processing_status(StatusEnum.IN_PROGRESS, 0, start_time=datetime.datetime.utcnow())
+
+        if self.processing_status.status == StatusEnum.PAUSED:
+            logger.info("Resuming paused processing...")
+            self.current_index = self._get_last_processed_index()
+
+        self.update_processing_status(StatusEnum.IN_PROGRESS, self.processing_status.progress, start_time=self.processing_status.start_time)
         logger.info(f"OCRProcessor initialized for project {self.project.directory_name}")
 
-    def get_project(self, project_id: int) -> Project:
+        # Store this instance in the class-level dictionary
+        OCRProcessor._processors[project_id] = self
+
+    def _get_last_processed_index(self) -> int:
+        # Implement logic to determine the last successfully processed image index.
+        # This could be based on logs, existing files in the success directory, etc.
+        success_dir = os.path.join(self.output_dir, "success")
+        processed_files = os.listdir(success_dir)
+        return len(processed_files)
+
+    @staticmethod
+    def get_processor(project_id: int):
+        return OCRProcessor._processors.get(project_id)
+
+    def _get_project(self, project_id: int) -> Project:
         logger.debug(f"Fetching project with ID {project_id}")
         project = self.db.query(Project).filter(Project.id == project_id).first()
         if not project:
@@ -43,7 +65,7 @@ class OCRProcessor:
             raise Exception(f"Project with ID {project_id} not found")
         return project
 
-    def get_processing_status(self, project_id: int) -> ProcessingStatus:
+    def _get_processing_status(self, project_id: int) -> ProcessingStatus:
         logger.debug(f"Fetching processing status for project {project_id}")
         status = self.db.query(ProcessingStatus).filter(ProcessingStatus.project_id == project_id).first()
         if not status:
@@ -85,7 +107,7 @@ class OCRProcessor:
         else:
             logger.warning(f"Prompt file not found at {self.prompt_file_path}")
             return None
-
+        
     def process_images(self, resume: bool = False):
         images = self.list_image_files()
         total_files = len(images)
@@ -114,6 +136,7 @@ class OCRProcessor:
             if self._stop_flag:
                 logger.info("Processing has been stopped.")
                 self.current_index = index  # Save the current index for resuming later
+                progress = int((index / total_files) * 100)
                 self.update_processing_status(StatusEnum.PAUSED, progress, end_time=None)
                 return
 
@@ -124,13 +147,16 @@ class OCRProcessor:
                 if response_json:
                     content = response_json.get("choices", [{}])[0].get("message", {}).get("content", "")
                     if JSONValidator.is_valid_json(content):
-                        JSONValidator.save_cleaned_json(self.output_dir, Path(image_path).stem, content)
-                        logger.info(f"Successfully processed and saved cleaned JSON for image: {image_path}")
+                        JSONValidator.save_cleaned_json(self.output_dir, Path(image_path).stem, content.encode('utf-8'), success=True)
+                        logger.info(f"Successfully processed and saved JSON for image: {image_path}")
                     else:
+                        JSONValidator.save_cleaned_json(self.output_dir, Path(image_path).stem, content.encode('utf-8'), success=False)
                         logger.error(f"Invalid JSON content for image: {image_path}")
                 else:
+                    JSONValidator.save_cleaned_json(self.output_dir, Path(image_path).stem, None, success=False)
                     logger.error(f"Invalid JSON response for image: {image_path}")
             except Exception as e:
+                JSONValidator.save_cleaned_json(self.output_dir, Path(image_path).stem, None, success=False)
                 logger.error(f"Failed to process image {image_path}: {str(e)}")
 
             progress = int(((index + 1) / total_files) * 100)
@@ -139,36 +165,6 @@ class OCRProcessor:
 
         self.update_processing_status(StatusEnum.COMPLETED, 100, end_time=datetime.datetime.utcnow())
         logger.info("OCR processing completed successfully")
-
-    def call_openai_api(self, image_path: str, prompt_text: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        logger.debug(f"Calling OpenAI API for image {image_path}")
-        with open(image_path, "rb") as image_file:
-            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
-
-        messages = [
-            {"role": "user", "content": [
-                {"type": "text", "text": prompt_text},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-            ]}
-        ]
-        
-        payload = {
-            "model": "gpt-4o-mini",
-            "messages": messages,
-            "max_tokens": 300
-        }
-
-        response = requests.post(OPENAI_API_URL, headers=headers, json=payload)
-
-        if response.status_code == 200:
-            try:
-                return response.json()
-            except json.JSONDecodeError as e:
-                logger.error(f"Error decoding JSON response: {str(e)}")
-                return None
-        else:
-            logger.error(f"OpenAI API request failed with status code {response.status_code}: {response.text}")
-            return None
 
     def stop_processing(self):
         logger.info("Stopping the OCR process.")

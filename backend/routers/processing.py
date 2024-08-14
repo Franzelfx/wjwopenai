@@ -83,7 +83,7 @@ def start_ocr_process(project_id: int, db: Session = Depends(get_db)):
 def stop_ocr_process(project_id: int, db: Session = Depends(get_db)):
     logger.info(f"Stopping OCR process for project {project_id}")
     try:
-        ocr_processor = OCRProcessor(project_id, db)
+        ocr_processor = OCRProcessor.get_processor(project_id)
         ocr_processor.stop_processing()
         return {"status": "success", "message": "OCR process stopped successfully"}
     except Exception as e:
@@ -94,7 +94,7 @@ def stop_ocr_process(project_id: int, db: Session = Depends(get_db)):
 def resume_ocr_process(project_id: int, db: Session = Depends(get_db)):
     logger.info(f"Resuming OCR process for project {project_id}")
     try:
-        ocr_processor = OCRProcessor(project_id, db)
+        ocr_processor = OCRProcessor.get_processor(project_id)
         ocr_processor.resume_processing()
         return {"status": "success", "message": "OCR process resumed successfully"}
     except Exception as e:

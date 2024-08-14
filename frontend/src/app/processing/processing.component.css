@@ -21,7 +21,6 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .results-section {
@@ -33,7 +32,6 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .progress-container {

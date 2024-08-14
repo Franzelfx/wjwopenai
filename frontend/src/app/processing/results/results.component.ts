@@ -25,6 +25,7 @@ interface FlatNode {
 export class ResultsComponent implements OnInit {
   @Input() projectId!: number;
   isLoading: boolean = true;
+  convertToCsv: boolean = false;
 
   treeControl = new FlatTreeControl<FlatNode>(
     (node) => node.level,
@@ -172,7 +173,7 @@ export class ResultsComponent implements OnInit {
 
   downloadSuccessOutput(): void {
     this.backendService
-      .downloadSuccessOutput(this.projectId)
+      .downloadSuccessOutput(this.projectId, this.convertToCsv)
       .subscribe((blob) => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -184,13 +185,15 @@ export class ResultsComponent implements OnInit {
   }
 
   downloadFailOutput(): void {
-    this.backendService.downloadFailOutput(this.projectId).subscribe((blob) => {
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'fail_output.zip';
-      a.click();
-      window.URL.revokeObjectURL(url);
-    });
+    this.backendService
+      .downloadFailOutput(this.projectId, this.convertToCsv)
+      .subscribe((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'fail_output.zip';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      });
   }
 }

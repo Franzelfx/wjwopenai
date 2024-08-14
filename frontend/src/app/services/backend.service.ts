@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 @Injectable({
   providedIn: 'root',
@@ -45,41 +45,53 @@ export class BackendService {
     );
   }
 
-  // Download output as zip
-  downloadOutput(projectId: number): Observable<Blob> {
-    console.log(
-      `Calling API to download output for project with ID ${projectId}`
+  downloadOutput(
+    projectId: number,
+    convertToCsv: boolean = false
+  ): Observable<Blob> {
+    let params = new HttpParams().set(
+      'convert_to_csv',
+      convertToCsv.toString()
     );
     return this.http.get(
       `${this.apiUrl}/projects/${projectId}/download_output`,
       {
         responseType: 'blob',
+        params: params,
       }
     );
   }
 
-  // Download success output as zip
-  downloadSuccessOutput(projectId: number): Observable<Blob> {
-    console.log(
-      `Calling API to download successful output for project with ID ${projectId}`
+  downloadSuccessOutput(
+    projectId: number,
+    convertToCsv: boolean = false
+  ): Observable<Blob> {
+    let params = new HttpParams().set(
+      'convert_to_csv',
+      convertToCsv.toString()
     );
     return this.http.get(
       `${this.apiUrl}/projects/${projectId}/download_success_output`,
       {
         responseType: 'blob',
+        params: params,
       }
     );
   }
 
-  // Download fail output as zip
-  downloadFailOutput(projectId: number): Observable<Blob> {
-    console.log(
-      `Calling API to download failed output for project with ID ${projectId}`
+  downloadFailOutput(
+    projectId: number,
+    convertToCsv: boolean = false
+  ): Observable<Blob> {
+    let params = new HttpParams().set(
+      'convert_to_csv',
+      convertToCsv.toString()
     );
     return this.http.get(
       `${this.apiUrl}/projects/${projectId}/download_fail_output`,
       {
         responseType: 'blob',
+        params: params,
       }
     );
   }

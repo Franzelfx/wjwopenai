@@ -1,4 +1,9 @@
 <div class="processing-container">
+  <!-- Checkbox for CSV Conversion -->
+  <div class="csv-conversion-option">
+    <mat-checkbox [(ngModel)]="convertToCsv" color="primary">Convert JSON to CSV</mat-checkbox>
+  </div>
+
   <!-- Results Section for Successful Files -->
   <div class="results-section">
     <h3>Successful Files</h3>
