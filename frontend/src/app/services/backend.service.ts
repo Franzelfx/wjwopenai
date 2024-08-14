@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-
 @Injectable({
   providedIn: 'root',
 })
@@ -168,6 +167,23 @@ export class BackendService {
     console.log(`Calling API to start OCR for project with ID ${projectId}`);
     return this.http.post<any>(
       `${this.processingApiUrl}/start-ocr/${projectId}`,
+      {}
+    );
+  }
+
+  // New methods to stop and resume OCR
+  stopOCR(projectId: number): Observable<any> {
+    console.log(`Calling API to stop OCR for project with ID ${projectId}`);
+    return this.http.post<any>(
+      `${this.processingApiUrl}/stop-ocr/${projectId}`,
+      {}
+    );
+  }
+
+  resumeOCR(projectId: number): Observable<any> {
+    console.log(`Calling API to resume OCR for project with ID ${projectId}`);
+    return this.http.post<any>(
+      `${this.processingApiUrl}/resume-ocr/${projectId}`,
       {}
     );
   }

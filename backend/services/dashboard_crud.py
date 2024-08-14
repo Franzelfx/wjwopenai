@@ -1,35 +1,23 @@
-# dashboard_crud.py contains the CRUD operations for the dashboard endpoints.
 import os
 import shutil
+import zipfile
 from datetime import datetime
 from sqlalchemy.orm import Session
 from models.dashboard import Project
 from schemas.dashboard import ProjectCreate, ProjectUpdate
-from fastapi import HTTPException
-import zipfile
+from fastapi import HTTPException, UploadFile
 from models.processing import ProcessingStatus, StatusEnum
-from fastapi import UploadFile
-
+from services.validator import JSONValidator
 
 # Define the base directory for the projects
 PROJECTS_BASE_DIR = "projects"
-
 
 def create_project(db: Session, project: ProjectCreate):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     project_dir = os.path.join(PROJECTS_BASE_DIR, timestamp)
 
     try:
-        # Ensure umask does not interfere with directory creation permissions
-        previous_umask = os.umask(0)
-        try:
-            os.makedirs(project_dir, mode=0o777, exist_ok=True)
-            os.makedirs(os.path.join(project_dir, "input"), mode=0o777, exist_ok=True)
-            os.makedirs(os.path.join(project_dir, "output", "fail"), mode=0o777, exist_ok=True)
-            os.makedirs(os.path.join(project_dir, "output", "success"), mode=0o777, exist_ok=True)
-        finally:
-            os.umask(previous_umask)
-
+        create_project_directories(project_dir)
         db_project = Project(
             name=project.name,
             description=project.description,
@@ -40,40 +28,40 @@ def create_project(db: Session, project: ProjectCreate):
         db.refresh(db_project)
 
         # Automatically create a ProcessingStatus object for the new project
-        db_status = ProcessingStatus(
-            project_id=db_project.id,
-            status=StatusEnum.PENDING,
-            total_files=0  # This should be updated once files are added
-        )
-        db.add(db_status)
-        db.commit()
-        db.refresh(db_status)
-        print(f"Project {db_project.name} committed to the database with status {db_status.status}.")
+        create_processing_status(db, db_project.id)
 
     except Exception as e:
         db.rollback()
-        print(f"Failed to create project: {str(e)}")
         raise HTTPException(
             status_code=500, detail="Failed to create project or directories"
-        )
+        ) from e
 
     return db_project
 
+def create_project_directories(project_dir: str):
+    previous_umask = os.umask(0)
+    try:
+        os.makedirs(os.path.join(project_dir, "input"), mode=0o777, exist_ok=True)
+        os.makedirs(os.path.join(project_dir, "output", "fail"), mode=0o777, exist_ok=True)
+        os.makedirs(os.path.join(project_dir, "output", "success"), mode=0o777, exist_ok=True)
+    finally:
+        os.umask(previous_umask)
+
+def create_processing_status(db: Session, project_id: int):
+    db_status = ProcessingStatus(
+        project_id=project_id,
+        status=StatusEnum.PENDING,
+        total_files=0  # This should be updated once files are added
+    )
+    db.add(db_status)
+    db.commit()
+    db.refresh(db_status)
 
 def get_projects(db: Session, skip: int = 0, limit: int = 10):
-    """
-    Retrieve a list of projects from the database, with optional pagination.
-    """
     return db.query(Project).offset(skip).limit(limit).all()
 
-
 def update_project(db: Session, project_id: int, project: ProjectUpdate):
-    """
-    Update the details of an existing project without renaming the directory since the directory
-    name is based on the creation timestamp.
-    """
     db_project = db.query(Project).filter(Project.id == project_id).first()
-
     if db_project is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -81,18 +69,10 @@ def update_project(db: Session, project_id: int, project: ProjectUpdate):
     db_project.description = project.description
     db.commit()
     db.refresh(db_project)
-
-    # Since the directory name is based on the timestamp, we do not need to rename the directory.
-    # Just return the updated project information.
     return db_project
 
-
 def delete_project(db: Session, project_id: int):
-    """
-    Delete a project from the database and remove the corresponding directory.
-    """
     db_project = db.query(Project).filter(Project.id == project_id).first()
-
     if db_project is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -101,100 +81,50 @@ def delete_project(db: Session, project_id: int):
     try:
         db.delete(db_project)
         db.commit()
-        print(f"Project {db_project.name} deleted from database.")
 
         if os.path.exists(project_dir):
             delete_directory(project_dir)
-        else:
-            print(f"Directory {project_dir} does not exist or was already removed.")
 
     except Exception as e:
-        print(f"Exception occurred during directory deletion: {str(e)}")
         db.rollback()
         raise HTTPException(
             status_code=500, detail="Failed to delete project or directory"
-        )
+        ) from e
 
     return db_project
 
-
-def delete_directory(directory_path):
-    """
-    Safely delete a directory and its contents.
-    """
+def delete_directory(directory_path: str):
     try:
         shutil.rmtree(directory_path)
-        print(f"Directory {directory_path} removed successfully.")
-    except PermissionError as e:
-        print(f"Permission denied: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete directory: {e}")
-    except FileNotFoundError as e:
-        print(f"File not found: {e}")
-        raise HTTPException(status_code=404, detail=f"Directory not found: {e}")
-    except Exception as e:
-        print(f"Error deleting directory: {e}")
+    except (PermissionError, FileNotFoundError) as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete directory: {e}")
 
-
-def upload_files_to_input(db: Session, project_id: int, files):
-    """
-    Upload multiple files to the input directory of a specific project.
-    """
+def upload_files_to_input(db: Session, project_id: int, files: list[UploadFile]):
     project = db.query(Project).filter(Project.id == project_id).first()
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
     input_dir = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "input")
-    if not os.path.exists(input_dir):
-        os.makedirs(input_dir)
+    os.makedirs(input_dir, exist_ok=True)
 
+    return save_uploaded_files(input_dir, files)
+
+def save_uploaded_files(directory: str, files: list[UploadFile]):
     uploaded_files = []
     for file in files:
-        file_path = os.path.join(input_dir, file.filename)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        uploaded_files.append(file.filename)
-
-    return uploaded_files
-
-
-def upload_folder_to_input(db: Session, project_id: int, files: list[UploadFile]):
-    """
-    Upload a folder to the input directory of a specific project.
-    """
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    input_dir = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "input")
-    if not os.path.exists(input_dir):
-        os.makedirs(input_dir, mode=0o777, exist_ok=True)
-
-    uploaded_files = []
-    for file in files:
-        # Ensure the directory structure exists with 777 permissions
-        file_path = os.path.join(input_dir, file.filename)
+        file_path = os.path.join(directory, file.filename)
         os.makedirs(os.path.dirname(file_path), mode=0o777, exist_ok=True)
-
-        # Save the file
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         uploaded_files.append(file.filename)
-
     return uploaded_files
-
 
 def delete_input_file(db: Session, project_id: int, filename: str):
-    """
-    Delete a specific file from the input directory of a project.
-    """
     project = db.query(Project).filter(Project.id == project_id).first()
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    input_file_path = os.path.join(
-        PROJECTS_BASE_DIR, project.directory_name, "input", filename
-    )
+    input_file_path = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "input", filename)
     if not os.path.exists(input_file_path):
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -204,105 +134,45 @@ def delete_input_file(db: Session, project_id: int, filename: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
 
+def download_output_files(db: Session, project_id: int, convert_to_csv=False):
+    return zip_output_files(db, project_id, convert_to_csv, ["success", "fail"])
 
-def download_output_files(db: Session, project_id: int):
-    """
-    Download all output files (success and fail) as a zip.
-    """
+def download_success_output_files(db: Session, project_id: int, convert_to_csv=False):
+    return zip_output_files(db, project_id, convert_to_csv, ["success"])
+
+def download_fail_output_files(db: Session, project_id: int, convert_to_csv=False):
+    return zip_output_files(db, project_id, convert_to_csv, ["fail"])
+
+def zip_output_files(db: Session, project_id: int, convert_to_csv: bool, output_types: list[str]):
     project = db.query(Project).filter(Project.id == project_id).first()
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
     output_dir = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "output")
-    success_dir = os.path.join(output_dir, "success")
-    fail_dir = os.path.join(output_dir, "fail")
-
-    if not os.path.exists(output_dir):
-        raise HTTPException(status_code=404, detail="Output directory not found")
-
     zip_filename = f"{project.name}_output.zip"
     zip_filepath = os.path.join(output_dir, zip_filename)
 
     with zipfile.ZipFile(zip_filepath, "w") as zipf:
-        for root, _, files in os.walk(success_dir):
-            for file in files:
-                zipf.write(
-                    os.path.join(root, file),
-                    os.path.relpath(os.path.join(root, file), output_dir),
-                )
-
-        for root, _, files in os.walk(fail_dir):
-            for file in files:
-                zipf.write(
-                    os.path.join(root, file),
-                    os.path.relpath(os.path.join(root, file), output_dir),
-                )
+        for output_type in output_types:
+            dir_path = os.path.join(output_dir, output_type)
+            if os.path.exists(dir_path):
+                add_files_to_zip(zipf, dir_path, convert_to_csv, output_dir)
 
     return zip_filepath
 
-
-def download_success_output_files(db: Session, project_id: int):
-    """
-    Download all successful output files as a zip.
-    """
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    success_dir = os.path.join(
-        PROJECTS_BASE_DIR, project.directory_name, "output", "success"
-    )
-
-    if not os.path.exists(success_dir):
-        raise HTTPException(
-            status_code=404, detail="Success output directory not found"
-        )
-
-    zip_filename = f"{project.name}_success_output.zip"
-    zip_filepath = os.path.join(success_dir, zip_filename)
-
-    with zipfile.ZipFile(zip_filepath, "w") as zipf:
-        for root, _, files in os.walk(success_dir):
-            for file in files:
-                zipf.write(
-                    os.path.join(root, file),
-                    os.path.relpath(os.path.join(root, file), success_dir),
-                )
-
-    return zip_filepath
-
-
-def download_fail_output_files(db: Session, project_id: int):
-    """
-    Download all failed output files as a zip.
-    """
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    fail_dir = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "output", "fail")
-
-    if not os.path.exists(fail_dir):
-        raise HTTPException(status_code=404, detail="Fail output directory not found")
-
-    zip_filename = f"{project.name}_fail_output.zip"
-    zip_filepath = os.path.join(fail_dir, zip_filename)
-
-    with zipfile.ZipFile(zip_filepath, "w") as zipf:
-        for root, _, files in os.walk(fail_dir):
-            for file in files:
-                zipf.write(
-                    os.path.join(root, file),
-                    os.path.relpath(os.path.join(root, file), fail_dir),
-                )
-
-    return zip_filepath
-
+def add_files_to_zip(zipf: zipfile.ZipFile, dir_path: str, convert_to_csv: bool, base_dir: str):
+    for root, _, files in os.walk(dir_path):
+        for file in files:
+            file_path = os.path.join(root, file)
+            if convert_to_csv and file.endswith(".json"):
+                with open(file_path, 'r', encoding='utf-8') as json_file:
+                    json_content = json_file.read()
+                filename_without_ext = os.path.splitext(file)[0]
+                JSONValidator.save_cleaned_json(root, filename_without_ext, json_content, convert_to_csv=True)
+                file_path = os.path.join(root, f"{filename_without_ext}.csv")
+            zipf.write(file_path, os.path.relpath(file_path, base_dir))
 
 def get_file_tree(db: Session, project_id: int):
-    """
-    Get the file tree of the input, output/success, and output/fail directories.
-    """
     project = db.query(Project).filter(Project.id == project_id).first()
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -320,11 +190,7 @@ def get_file_tree(db: Session, project_id: int):
 
     return file_tree
 
-
 def get_directory_structure(rootdir: str) -> dict:
-    """
-    Recursively builds a nested dictionary that represents the folder structure of rootdir.
-    """
     structure = {}
     for item in os.listdir(rootdir):
         item_path = os.path.join(rootdir, item)
@@ -334,11 +200,7 @@ def get_directory_structure(rootdir: str) -> dict:
             structure[item] = None
     return structure
 
-
 def delete_all_input_files(db: Session, project_id: int):
-    """
-    Delete all files in the input directory of a specific project.
-    """
     project = db.query(Project).filter(Project.id == project_id).first()
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -357,11 +219,7 @@ def delete_all_input_files(db: Session, project_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete files: {str(e)}")
 
-
 def delete_input_file_or_folder(db: Session, project_id: int, path: str):
-    """
-    Delete a specific file or folder from the input directory of a project.
-    """
     project = db.query(Project).filter(Project.id == project_id).first()
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")

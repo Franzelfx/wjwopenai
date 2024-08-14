@@ -28,9 +28,10 @@ class OCRProcessor:
         self.project = self.get_project(project_id)
         self.input_dir = f"projects/{self.project.directory_name}/input"
         self.output_dir = f"projects/{self.project.directory_name}/output"
-        self.prompt_file_path = f"projects/{self.project.directory_name}/prompt.md"
+        self.prompt_file_path = f"prompt.md"
         self.processing_status = self.get_processing_status(project_id)
         self._stop_flag = False
+        self.current_index = 0  # Track the current index for resuming
         self.update_processing_status(StatusEnum.IN_PROGRESS, 0, start_time=datetime.datetime.utcnow())
         logger.info(f"OCRProcessor initialized for project {self.project.directory_name}")
 
@@ -77,10 +78,6 @@ class OCRProcessor:
         return image_files
 
     def load_prompt_file(self) -> Optional[str]:
-        """
-        Load the prompt file content from the project's root directory.
-        Returns the content of the markdown file if it exists, otherwise returns None.
-        """
         if os.path.exists(self.prompt_file_path):
             logger.info(f"Loading prompt file from {self.prompt_file_path}")
             with open(self.prompt_file_path, 'r', encoding='utf-8') as file:
@@ -89,7 +86,7 @@ class OCRProcessor:
             logger.warning(f"Prompt file not found at {self.prompt_file_path}")
             return None
 
-    def process_images(self):
+    def process_images(self, resume: bool = False):
         images = self.list_image_files()
         total_files = len(images)
         logger.info(f"Total images found for processing: {total_files}")
@@ -98,35 +95,34 @@ class OCRProcessor:
             self.update_processing_status(StatusEnum.FAILED, 100, end_time=datetime.datetime.utcnow())
             logger.error("No images found for processing.")
             raise Exception("No images found for processing.")
-        
-        # Empty the output fail and success directories
-        for sub_dir in ["fail", "success"]:
-            full_output_dir = os.path.join(self.output_dir, sub_dir)
-            for file in os.listdir(full_output_dir):
-                os.remove(os.path.join(full_output_dir, file))
 
-        prompt_text = self.load_prompt_file()  # Load the prompt file content
+        # Empty the output fail and success directories if not resuming
+        if not resume:
+            for sub_dir in ["fail", "success"]:
+                full_output_dir = os.path.join(self.output_dir, sub_dir)
+                for file in os.listdir(full_output_dir):
+                    os.remove(os.path.join(full_output_dir, file))
+
+        prompt_text = self.load_prompt_file()
         
-        # Stop if the prompt file is missing
         if not prompt_text:
             self.update_processing_status(StatusEnum.FAILED, 100, end_time=datetime.datetime.utcnow())
             logger.error("Prompt file not found. Stopping processing.")
             raise Exception("Prompt file not found.")
 
-        for index, image_path in enumerate(images):
+        for index in range(self.current_index, total_files):
             if self._stop_flag:
                 logger.info("Processing has been stopped.")
+                self.current_index = index  # Save the current index for resuming later
                 self.update_processing_status(StatusEnum.PAUSED, progress, end_time=None)
                 return
 
+            image_path = images[index]
             logger.info(f"Processing image {index + 1}/{total_files}: {image_path}")
             try:
                 response_json = self.call_openai_api(image_path, prompt_text)
                 if response_json:
-                    # Extract and clean the content within the JSON response
                     content = response_json.get("choices", [{}])[0].get("message", {}).get("content", "")
-                    
-                    # Validate and save the cleaned JSON content
                     if JSONValidator.is_valid_json(content):
                         JSONValidator.save_cleaned_json(self.output_dir, Path(image_path).stem, content)
                         logger.info(f"Successfully processed and saved cleaned JSON for image: {image_path}")
@@ -137,23 +133,18 @@ class OCRProcessor:
             except Exception as e:
                 logger.error(f"Failed to process image {image_path}: {str(e)}")
 
-            # Update progress after each file is processed
             progress = int(((index + 1) / total_files) * 100)
             self.update_processing_status(StatusEnum.IN_PROGRESS, progress)
             logger.info(f"Progress updated to {progress}%")
 
-        # Final update to mark as completed
         self.update_processing_status(StatusEnum.COMPLETED, 100, end_time=datetime.datetime.utcnow())
         logger.info("OCR processing completed successfully")
 
     def call_openai_api(self, image_path: str, prompt_text: Optional[str] = None) -> Optional[Dict[str, Any]]:
         logger.debug(f"Calling OpenAI API for image {image_path}")
-        
-        # Encode the image in base64
         with open(image_path, "rb") as image_file:
             base64_image = base64.b64encode(image_file.read()).decode('utf-8')
 
-        # Prepare the payload for OpenAI API
         messages = [
             {"role": "user", "content": [
                 {"type": "text", "text": prompt_text},
@@ -162,9 +153,9 @@ class OCRProcessor:
         ]
         
         payload = {
-            "model": "gpt-4o-mini",  # Adjust the model according to your needs
+            "model": "gpt-4o-mini",
             "messages": messages,
-            "max_tokens": 300  # Adjust tokens as needed
+            "max_tokens": 300
         }
 
         response = requests.post(OPENAI_API_URL, headers=headers, json=payload)
@@ -180,19 +171,13 @@ class OCRProcessor:
             return None
 
     def stop_processing(self):
-        """
-        Set a flag to stop the processing.
-        """
         logger.info("Stopping the OCR process.")
         self._stop_flag = True
 
     def resume_processing(self):
-        """
-        Resume processing if it was paused.
-        """
         if self.processing_status.status == StatusEnum.PAUSED:
             logger.info("Resuming the OCR process.")
             self._stop_flag = False
-            self.process_images()
+            self.process_images(resume=True)
         else:
             logger.warning("Cannot resume because the process is not in PAUSED state.")

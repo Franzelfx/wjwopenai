@@ -27,7 +27,6 @@
   border-bottom: 2px solid black;
   margin-bottom: 20px;
   margin-top: -10px;
-  /* Adjust spacing as needed */
 }
 
 .file-tree-container {
@@ -100,6 +99,8 @@
   font-weight: bold;
   font-size: 14px;
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  display: block;
+  /* Ensure buttons stack vertically */
 }
 
 .upload-button {
@@ -141,13 +142,57 @@
   color: #666;
 }
 
+.ocr-control-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ocr-control-buttons button {
+  width: 100%;
+  /* Make sure buttons take full width */
+  display: block;
+  /* Ensure buttons stack vertically */
+}
+
 .start-ocr-button {
   background-color: #2196f3;
   color: #fff;
-  margin-top: 10px;
+}
+
+.start-ocr-button mat-icon {
+  margin-right: 8px;
 }
 
 .start-ocr-button:hover {
   background-color: #1976d2;
   box-shadow: 0 4px 10px rgba(33, 150, 243, 0.3);
+}
+
+.stop-ocr-button {
+  background-color: #f44336;
+  color: #fff;
+}
+
+.stop-ocr-button mat-icon {
+  margin-right: 8px;
+}
+
+.stop-ocr-button:hover {
+  background-color: #d32f2f;
+  box-shadow: 0 4px 10px rgba(244, 67, 54, 0.3);
+}
+
+.resume-ocr-button {
+  background-color: #4caf50;
+  color: #fff;
+}
+
+.resume-ocr-button mat-icon {
+  margin-right: 8px;
+}
+
+.resume-ocr-button:hover {
+  background-color: #388e3c;
+  box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
 }

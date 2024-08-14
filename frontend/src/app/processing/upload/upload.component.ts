@@ -170,16 +170,50 @@ export class UploadComponent implements OnInit {
   }
 
   startOCR(): void {
-    console.log('Starting OCR process for project ID:', this.projectId);
-    this.backendService.startOCR(this.projectId).subscribe(
-      (response) => {
-        console.log('OCR process started successfully:', response);
-        alert('OCR process started successfully');
-      },
-      (error) => {
-        console.error('Failed to start OCR process:', error);
-        alert('Failed to start OCR process');
-      }
-    );
+    if (confirm('Are you sure you want to start the OCR process?')) {
+      console.log('Starting OCR process for project ID:', this.projectId);
+      this.backendService.startOCR(this.projectId).subscribe(
+        (response) => {
+          console.log('OCR process started successfully:', response);
+          alert('OCR process started successfully');
+        },
+        (error) => {
+          console.error('Failed to start OCR process:', error);
+          alert('Failed to start OCR process');
+        }
+      );
+    }
+  }
+
+  stopOCR(): void {
+    if (confirm('Are you sure you want to stop the OCR process?')) {
+      console.log('Stopping OCR process for project ID:', this.projectId);
+      this.backendService.stopOCR(this.projectId).subscribe(
+        (response) => {
+          console.log('OCR process stopped successfully:', response);
+          alert('OCR process stopped successfully');
+        },
+        (error) => {
+          console.error('Failed to stop OCR process:', error);
+          alert('Failed to stop OCR process');
+        }
+      );
+    }
+  }
+
+  resumeOCR(): void {
+    if (confirm('Are you sure you want to resume the OCR process?')) {
+      console.log('Resuming OCR process for project ID:', this.projectId);
+      this.backendService.resumeOCR(this.projectId).subscribe(
+        (response) => {
+          console.log('OCR process resumed successfully:', response);
+          alert('OCR process resumed successfully');
+        },
+        (error) => {
+          console.error('Failed to resume OCR process:', error);
+          alert('Failed to resume OCR process');
+        }
+      );
+    }
   }
 }

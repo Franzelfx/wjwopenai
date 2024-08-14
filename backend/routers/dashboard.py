@@ -6,6 +6,7 @@ from db import get_db
 from typing import List
 from fastapi.responses import FileResponse
 import os
+from fastapi import Query
 
 router = APIRouter()
 
@@ -44,9 +45,13 @@ def upload_files_to_input(
     )
 
 @router.get("/projects/{project_id}/download_output", response_class=FileResponse)
-def download_output_files(project_id: int, db: Session = Depends(get_db)):
-    zip_filepath = dashboard_crud.download_output_files(db=db, project_id=project_id)
-    return zip_filepath
+def download_output_files(
+    project_id: int,
+    db: Session = Depends(get_db),
+    convert_to_csv: bool = Query(False, description="Convert JSON to CSV before downloading")
+):
+    zip_filepath = dashboard_crud.download_output_files(db=db, project_id=project_id, convert_to_csv=convert_to_csv)
+    return FileResponse(zip_filepath, filename=os.path.basename(zip_filepath))
 
 
 @router.get("/projects/{project_id}/file_tree")
@@ -69,20 +74,25 @@ def delete_input_file_or_folder(
         db=db, project_id=project_id, path=path
     )
 
-
-@router.get(
-    "/projects/{project_id}/download_success_output", response_class=FileResponse
-)
-def download_success_output_files(project_id: int, db: Session = Depends(get_db)):
+@router.get("/projects/{project_id}/download_success_output", response_class=FileResponse)
+def download_success_output_files(
+    project_id: int,
+    db: Session = Depends(get_db),
+    convert_to_csv: bool = Query(False, description="Convert JSON to CSV before downloading")
+):
     zip_filepath = dashboard_crud.download_success_output_files(
-        db=db, project_id=project_id
+        db=db, project_id=project_id, convert_to_csv=convert_to_csv
     )
     return FileResponse(zip_filepath, filename=os.path.basename(zip_filepath))
 
 
 @router.get("/projects/{project_id}/download_fail_output", response_class=FileResponse)
-def download_fail_output_files(project_id: int, db: Session = Depends(get_db)):
+def download_fail_output_files(
+    project_id: int,
+    db: Session = Depends(get_db),
+    convert_to_csv: bool = Query(False, description="Convert JSON to CSV before downloading")
+):
     zip_filepath = dashboard_crud.download_fail_output_files(
-        db=db, project_id=project_id
+        db=db, project_id=project_id, convert_to_csv=convert_to_csv
     )
     return FileResponse(zip_filepath, filename=os.path.basename(zip_filepath))
