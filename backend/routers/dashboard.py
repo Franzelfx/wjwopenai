@@ -99,3 +99,11 @@ def download_fail_output_files(
     )
     return FileResponse(zip_filepath, filename=os.path.basename(zip_filepath))
 
+# Add this endpoint to handle DELETE requests for specific files or folders
+@router.delete("/projects/{project_id}/input_files/{path:path}", response_model=str)
+def delete_input_file_or_folder(
+    project_id: int,
+    path: str,
+    db: Session = Depends(get_db)
+):
+    return dashboard_crud.delete_input_file_or_folder(db=db, project_id=project_id, path=path)

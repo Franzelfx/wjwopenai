@@ -296,3 +296,4 @@ def delete_input_file_or_folder(db: Session, project_id: int, path: str):
         return f"'{path}' successfully deleted from input directory."
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete '{path}': {str(e)}")
+

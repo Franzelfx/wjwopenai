@@ -88,23 +88,30 @@ class JSONValidator:
         decoded_content = JSONValidator.try_decode_content(content)
         cleaned_content = JSONValidator.clean_json_content(decoded_content)
 
-        # Dekodiert alle Unicode-Escape-Sequenzen in den JSON-Daten
-        try:
-            json_data = json.loads(cleaned_content)
-            decoded_json_data = JSONValidator.decode_unicode_in_json(json_data)
-        except json.JSONDecodeError as e:
-            logger.error(f"Fehler beim Dekodieren des JSON für {filename}: {str(e)}")
-            return ""
-
-        # Bestimmt das Verzeichnis zum Speichern des bereinigten JSON
         sub_dir = "success" if success else "fail"
         full_output_dir = os.path.join(output_dir, sub_dir)
         os.makedirs(full_output_dir, exist_ok=True)
 
-        # Speichert als JSON
-        output_path = os.path.join(full_output_dir, f"{filename}.json")
-        with open(output_path, "w", encoding="utf-8") as json_file:
-            json.dump(decoded_json_data, json_file, indent=4, ensure_ascii=False)
+        try:
+            # Versucht, den bereinigten JSON-Inhalt zu dekodieren
+            json_data = json.loads(cleaned_content)
+            decoded_json_data = JSONValidator.decode_unicode_in_json(json_data)
+            output_path = os.path.join(full_output_dir, f"{filename}.json")
+            
+            # Speichert als JSON
+            with open(output_path, "w", encoding="utf-8") as json_file:
+                json.dump(decoded_json_data, json_file, indent=4, ensure_ascii=False)
+                
+            logger.info(f"JSON-Datei gespeichert unter {output_path}")
+            return output_path
 
-        logger.info(f"JSON-Datei gespeichert unter {output_path}")
-        return output_path
+        except json.JSONDecodeError as e:
+            logger.error(f"Fehler beim Dekodieren des JSON für {filename}: {str(e)}")
+            
+            # Speichert den Originalinhalt im Fehlschlagverzeichnis
+            fail_output_path = os.path.join(full_output_dir, f"{filename}_invalid.json")
+            with open(fail_output_path, "w", encoding="utf-8") as json_file:
+                json_file.write(cleaned_content)
+                
+            logger.info(f"Ungültiger JSON-Inhalt in der Datei gespeichert: {fail_output_path}")
+            return fail_output_path
