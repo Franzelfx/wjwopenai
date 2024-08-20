@@ -1,5 +1,5 @@
 export const environment = {
   production: true,
-  apiUrl: 'http://w7cauhlbal7amorf.myfritz.net:6006/dashboard',
-  processingApiUrl: 'http://w7cauhlbal7amorf.myfritz.net:6006/processing',
+  apiUrl: 'http://localhost:6006/dashboard',
+  processingApiUrl: 'http://localhost:6006/processing',
 };
