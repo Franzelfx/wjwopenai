@@ -15,6 +15,7 @@ from services.validator import JSONValidator
 SUPPORTED_IMAGE_FORMATS = [".png", ".jpg", ".jpeg", ".tif", ".tiff"]
 OPENAI_API_KEY = "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"
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+MX_TOKENS = 3000
 
 # Configure OpenAI API key
 headers = {
@@ -169,7 +170,7 @@ class OCRProcessor:
         payload = {
             "model": "gpt-4o-mini",
             "messages": messages,
-            "max_tokens": 300
+            "max_tokens": MX_TOKENS,
         }
 
         response = requests.post(OPENAI_API_URL, headers=headers, json=payload)

@@ -3,6 +3,7 @@ import shutil
 import json
 import csv
 import zipfile
+import traceback
 from datetime import datetime
 from sqlalchemy.orm import Session
 from models.dashboard import Project
@@ -161,7 +162,17 @@ def download_success_output_files(db: Session, project_id: int, convert_to_csv: 
     return download_specific_output_files(db, project_id, "success", convert_to_csv)
 
 def download_fail_output_files(db: Session, project_id: int, convert_to_csv: bool = False):
-    return download_specific_output_files(db, project_id, "fail", convert_to_csv)
+    try:
+        print(f"Attempting to download fail output files for project {project_id}")
+        result = download_specific_output_files(db, project_id, "fail", convert_to_csv)
+        print(f"Successfully downloaded fail output files for project {project_id}")
+        return result
+    except Exception as e:
+        # Print a detailed traceback to the console
+        print("Error occurred while downloading fail output files:")
+        traceback.print_exc()  # This will print the full traceback of the exception
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
 
 def download_specific_output_files(db: Session, project_id: int, output_type: str, convert_to_csv: bool):
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -179,18 +190,27 @@ def create_zip_with_conversion(directory: str, convert_to_csv: bool):
     zip_filename = os.path.basename(directory) + "_output.zip"
     zip_filepath = os.path.join(directory, zip_filename)
 
-    with zipfile.ZipFile(zip_filepath, "w") as zipf:
-        for root, _, files in os.walk(directory):
-            for file in files:
-                file_path = os.path.join(root, file)
-                if convert_to_csv and file.endswith(".json"):
-                    csv_filepath = file_path.replace(".json", ".csv")
-                    convert_json_to_csv(file_path, csv_filepath)
-                    file_to_zip = csv_filepath
-                else:
-                    file_to_zip = file_path
-                zipf.write(file_to_zip, os.path.relpath(file_to_zip, directory))
+    # Allow both .csv and .json files to be zipped, regardless of conversion flag
+    files_to_zip = [f for f in os.listdir(directory) if f.endswith('.csv') or f.endswith('.json')]
+    print(f"Files selected for zipping: {files_to_zip}")
+
+    if not files_to_zip:
+        print(f"No files to zip in directory: {directory}")
+        raise HTTPException(status_code=404, detail="No valid files to zip")
+
+    with zipfile.ZipFile(zip_filepath, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as zipf:
+        for file in files_to_zip:
+            file_path = os.path.join(directory, file)
+            if convert_to_csv and file.endswith(".json"):
+                csv_filepath = file_path.replace(".json", ".csv")
+                convert_json_to_csv(file_path, csv_filepath)
+                file_to_zip = csv_filepath
+            else:
+                file_to_zip = file_path
+            zipf.write(file_to_zip, os.path.relpath(file_to_zip, directory))
     return zip_filepath
+
+
 
 def convert_json_to_csv(json_filepath, csv_filepath):
     try:
@@ -200,18 +220,19 @@ def convert_json_to_csv(json_filepath, csv_filepath):
         if isinstance(data, dict):
             data = [data]  # Convert to list for consistent processing
 
+        if not data:  # Check for empty JSON content
+            raise ValueError("JSON content is empty or not in the expected format.")
+
         flattened_data = [flatten_json(item) for item in data]
         
         with open(csv_filepath, 'w', newline='') as csv_file:
-            if flattened_data:
-                writer = csv.DictWriter(csv_file, fieldnames=flattened_data[0].keys())
-                writer.writeheader()
-                writer.writerows(flattened_data)
-            else:
-                raise ValueError("JSON content is not in the expected format or is empty.")
-                
+            writer = csv.DictWriter(csv_file, fieldnames=flattened_data[0].keys())
+            writer.writeheader()
+            writer.writerows(flattened_data)
     except Exception as e:
+        print(f"Failed to convert JSON to CSV: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to convert JSON to CSV: {str(e)}")
+
 
 
 def flatten_json(y):
