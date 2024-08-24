@@ -13,7 +13,7 @@ from services.validator import JSONValidator
 
 # Constants
 SUPPORTED_IMAGE_FORMATS = [".png", ".jpg", ".jpeg", ".tif", ".tiff"]
-OPENAI_API_KEY = "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"
+OPENAI_API_KEY = "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"
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 MX_TOKENS = 3000
 
