@@ -255,6 +255,9 @@ def flatten_json(y):
 
 
 def get_file_tree(db: Session, project_id: int):
+    """
+    Retrieves the file tree for a specific project, sorted by file names.
+    """
     project = db.query(Project).filter(Project.id == project_id).first()
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -272,14 +275,26 @@ def get_file_tree(db: Session, project_id: int):
 
     return file_tree
 
+
 def get_directory_structure(rootdir: str) -> dict:
+    """
+    Recursively constructs a dictionary representing the directory structure.
+    The structure will be sorted by file and directory names.
+    """
     structure = {}
-    for item in os.listdir(rootdir):
+
+    # Get a sorted list of all items in the directory
+    items = sorted(os.listdir(rootdir), key=lambda s: s.lower())  # Sort case-insensitively
+
+    for item in items:
         item_path = os.path.join(rootdir, item)
         if os.path.isdir(item_path):
+            # Recursively get the directory structure for subdirectories
             structure[item] = get_directory_structure(item_path)
         else:
+            # Mark the item as a file (or None, if you want a simpler output)
             structure[item] = None
+
     return structure
 
 def delete_all_input_files(db: Session, project_id: int):

@@ -201,4 +201,45 @@ export class BackendService {
       {}
     );
   }
+
+  getJsonFile(
+    projectId: number,
+    outputType: string,
+    fileName: string
+  ): Observable<string> {
+    console.log(
+      `Fetching JSON file: ${fileName} from ${outputType} for project ${projectId}`
+    );
+    return this.http.get<string>(
+      `${this.processingApiUrl}/get-json-file/${projectId}/${outputType}/${fileName}`
+    );
+  }
+
+  updateJsonFile(
+    projectId: number,
+    outputType: string,
+    fileName: string,
+    content: string
+  ): Observable<any> {
+    console.log(
+      `Updating JSON file: ${fileName} in ${outputType} for project ${projectId}`
+    );
+    return this.http.put<any>(
+      `${this.processingApiUrl}/update-json-file/${projectId}/${outputType}/${fileName}`,
+      { content }
+    );
+  }
+
+  deleteJsonFile(
+    projectId: number,
+    outputType: string,
+    fileName: string
+  ): Observable<any> {
+    console.log(
+      `Deleting JSON file: ${fileName} from ${outputType} for project ${projectId}`
+    );
+    return this.http.delete<any>(
+      `${this.processingApiUrl}/delete-json-file/${projectId}/${outputType}/${fileName}`
+    );
+  }
 }

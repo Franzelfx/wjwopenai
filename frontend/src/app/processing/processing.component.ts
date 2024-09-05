@@ -17,7 +17,8 @@ export class ProcessingComponent implements OnInit, OnDestroy {
   projectId: number = 0;
   progress: number = 0;
   status: string = 'PENDING';
-  private sseSubscription!: Subscription;
+  sseSubscription!: Subscription;
+  selectedFile: { fileName: string; outputType: string } | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -61,5 +62,8 @@ export class ProcessingComponent implements OnInit, OnDestroy {
     if (this.sseSubscription) {
       this.sseSubscription.unsubscribe();
     }
+  }
+  onFileSelected(event: { fileName: string; outputType: string }): void {
+    this.selectedFile = event; // Correctly set the selected file
   }
 }

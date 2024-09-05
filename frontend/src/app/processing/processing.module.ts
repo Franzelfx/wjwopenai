@@ -8,10 +8,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { UploadModule } from './upload/upload.module';
 import { ResultsModule } from './results/results.module';
-import { ProgressBarComponent } from './progress-bar/progress-bar.component'; // Import ProgressBarComponent
+import { ProgressBarComponent } from './progress-bar/progress-bar.component';
+import { EditComponent } from './edit/edit.component';
 
 @NgModule({
-  declarations: [ProcessingComponent, ProgressBarComponent], // Declare ProgressBarComponent
+  declarations: [ProcessingComponent, ProgressBarComponent, EditComponent],
   imports: [
     CommonModule,
     ProcessingRoutingModule,

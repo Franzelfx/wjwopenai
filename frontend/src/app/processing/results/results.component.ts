@@ -1,4 +1,5 @@
-import { Component, Input, OnInit } from '@angular/core';
+// results.component.ts
+import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core';
 import { FlatTreeControl } from '@angular/cdk/tree';
 import {
   MatTreeFlatDataSource,
@@ -24,14 +25,19 @@ interface FlatNode {
 })
 export class ResultsComponent implements OnInit {
   @Input() projectId!: number;
+  @Output() fileSelected = new EventEmitter<{
+    fileName: string;
+    outputType: string;
+  }>(); // Emit file selection to parent
+
   isLoading: boolean = true;
   convertToCsv: boolean = false;
+  selectedItem: FileNode | null = null;
 
   treeControl = new FlatTreeControl<FlatNode>(
     (node) => node.level,
     (node) => node.expandable
   );
-
   treeFlattener = new MatTreeFlattener(
     (node: FileNode, level: number) => ({
       expandable: !!node.children && node.children.length > 0,
@@ -61,7 +67,6 @@ export class ResultsComponent implements OnInit {
   );
 
   expandedNodeSet = new Set<string>();
-  selectedItem: FileNode | null = null;
 
   constructor(private backendService: BackendService) {}
 
@@ -101,12 +106,14 @@ export class ResultsComponent implements OnInit {
 
   selectItem(node: FileNode): void {
     this.selectedItem = node;
+    const outputType = this.isSuccessFile(node) ? 'success' : 'fail';
+
+    // Emit the file selection event with details
+    this.fileSelected.emit({ fileName: node.name, outputType });
   }
 
   filterSuccessFiles(event: Event): void {
-    const inputElement = event.target as HTMLInputElement;
-    const query = inputElement.value.toLowerCase();
-
+    const query = (event.target as HTMLInputElement).value.toLowerCase();
     this.saveExpandedState();
     const filteredData = this.filterTree(query, this.successDataSource.data);
     this.filteredSuccessDataSource.data = filteredData;
@@ -114,9 +121,7 @@ export class ResultsComponent implements OnInit {
   }
 
   filterFailedFiles(event: Event): void {
-    const inputElement = event.target as HTMLInputElement;
-    const query = inputElement.value.toLowerCase();
-
+    const query = (event.target as HTMLInputElement).value.toLowerCase();
     this.saveExpandedState();
     const filteredData = this.filterTree(query, this.failDataSource.data);
     this.filteredFailDataSource.data = filteredData;
@@ -171,29 +176,7 @@ export class ResultsComponent implements OnInit {
     return node.name;
   }
 
-  downloadSuccessOutput(): void {
-    this.backendService
-      .downloadSuccessOutput(this.projectId, this.convertToCsv)
-      .subscribe((blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'success_output.zip';
-        a.click();
-        window.URL.revokeObjectURL(url);
-      });
-  }
-
-  downloadFailOutput(): void {
-    this.backendService
-      .downloadFailOutput(this.projectId, this.convertToCsv)
-      .subscribe((blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'fail_output.zip';
-        a.click();
-        window.URL.revokeObjectURL(url);
-      });
+  isSuccessFile(node: FileNode): boolean {
+    return this.successDataSource.data.some((n) => n.name === node.name);
   }
 }

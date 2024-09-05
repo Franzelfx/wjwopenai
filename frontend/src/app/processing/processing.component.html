@@ -6,12 +6,14 @@
 
   <!-- Results Section -->
   <div class="results-section">
-    <app-results [projectId]="projectId"></app-results>
+    <app-results [projectId]="projectId" (fileSelected)="onFileSelected($event)"></app-results>
+  </div>
+
+  <!-- Edit Section -->
+  <div class="json-editor-container" *ngIf="selectedFile">
+    <app-edit [fileName]="selectedFile.fileName" [outputType]="selectedFile.outputType" [projectId]="projectId"></app-edit>
   </div>
 </div>
 
 <!-- Progress Bar always at the bottom -->
-<app-progress-bar
-  [progress]="progress"
-  [status]="status"
-></app-progress-bar>
+<app-progress-bar [progress]="progress" [status]="status"></app-progress-bar>

@@ -41,3 +41,6 @@ class ProcessingStatusResponse(ProcessingStatusBase):
 
     class Config:
         orm_mode = True
+
+class JsonFile(BaseModel):
+    content: dict

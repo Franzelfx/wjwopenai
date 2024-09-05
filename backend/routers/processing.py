@@ -2,15 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from services import processing_crud
 from db import get_db
-from schemas.processing import ProcessingStatusResponse
+from schemas.processing import ProcessingStatusResponse, JsonFile
 from fastapi.responses import StreamingResponse
+from urllib.parse import unquote  # Import unquote for URL decoding
 import time
 import json
 from schemas.processing import ProcessingStatusResponse
 from models.processing import StatusEnum
 from loguru import logger
 from services.engine import OCRProcessor  # Import the OCRProcessor class
-from models.processing import ProcessingStatus
+from fastapi import Body
 
 router = APIRouter()
 
@@ -93,15 +94,31 @@ def stop_ocr_process(project_id: int, db: Session = Depends(get_db)):
         logger.error(f"Failed to stop OCR process for project {project_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to stop OCR process: {str(e)}")
 
-@router.post("/resume-ocr/{project_id}")
-def resume_ocr_process(project_id: int, db: Session = Depends(get_db)):
-    logger.info(f"Resuming OCR process for project {project_id}")
-    try:
-        ocr_processor = OCRProcessor.get_processor(project_id)
-        if not ocr_processor:
-            raise HTTPException(status_code=404, detail="OCR Processor not found for this project.")
-        ocr_processor.resume_processing()
-        return {"status": "success", "message": "OCR process resumed successfully"}
-    except Exception as e:
-        logger.error(f"Failed to resume OCR process for project {project_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to resume OCR process: {str(e)}")
+@router.get("/get-json-file/{project_id}/{output_type}/{file_name}")
+def get_json_file(project_id: int, output_type: str, file_name: str, db: Session = Depends(get_db)):
+    """Endpoint to retrieve the content of a JSON file."""
+    # Decode the URL-encoded file name
+    decoded_file_name = unquote(file_name)
+    return processing_crud.get_json_file(db, project_id, output_type, decoded_file_name)
+
+@router.put("/update-json-file/{project_id}/{output_type}/{file_name}")
+def update_json_file(
+    project_id: int,
+    output_type: str,
+    file_name: str,
+    content: dict = Body(...),  # Use Body to parse JSON content from request body
+    db: Session = Depends(get_db)
+):
+    """Endpoint to update the content of a JSON file."""
+    decoded_file_name = unquote(file_name)  # Decode URL-encoded file name
+
+    logger.info(f"Updating file: {decoded_file_name} for project {project_id}, output type {output_type}")
+    
+    # Use the CRUD function to update the file
+    return processing_crud.update_json_file(db, project_id, output_type, decoded_file_name, json.dumps(content))
+@router.delete("/delete-json-file/{project_id}/{output_type}/{file_name}")
+def delete_json_file(project_id: int, output_type: str, file_name: str, db: Session = Depends(get_db)):
+    """Endpoint to delete a JSON file."""
+    # Decode the URL-encoded file name
+    decoded_file_name = unquote(file_name)
+    return processing_crud.delete_json_file(db, project_id, output_type, decoded_file_name)

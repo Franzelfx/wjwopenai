@@ -1,0 +1,13 @@
+<!-- edit.component.html -->
+<div class="json-editor-container">
+  <!-- JSON Editor -->
+  <textarea id="json-editor" [(ngModel)]="jsonContent" (input)="validateJson()"></textarea>
+
+  <!-- Submit Button -->
+  <div class="button-container">
+    <button (click)="submitJson()" [disabled]="!isJsonValid">Submit</button>
+  </div>
+
+  <!-- Error Message -->
+  <p *ngIf="!isJsonValid" class="error-message">Invalid JSON format</p>
+</div>
