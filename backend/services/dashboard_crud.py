@@ -159,7 +159,105 @@ def download_output_files(db: Session, project_id: int, convert_to_csv: bool = F
     return zip_filepath
 
 def download_success_output_files(db: Session, project_id: int, convert_to_csv: bool = False):
-    return download_specific_output_files(db, project_id, "success", convert_to_csv)
+    """
+    Download the successful output files for a given project.
+    If convert_to_csv is True, it will convert all JSON files into a single CSV.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    output_dir = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "output", "success")
+    if not os.path.exists(output_dir):
+        raise HTTPException(status_code=404, detail="Success output directory not found")
+
+    if convert_to_csv:
+        # Create a single CSV file from all JSON files
+        csv_filepath = create_combined_csv(output_dir)
+        return csv_filepath
+    else:
+        # Find all JSON files in the success directory
+        json_files = [os.path.join(output_dir, f) for f in os.listdir(output_dir) if f.endswith('.json')]
+        if not json_files:
+            raise HTTPException(status_code=404, detail="No JSON files found")
+
+        # If there is only one JSON file, return its path
+        if len(json_files) == 1:
+            return json_files[0]
+        else:
+            # Handle multiple JSON files by returning the first one (modify as needed)
+            return json_files[0]
+
+def create_combined_csv(db: Session, project_id: int, output_type: str) -> str:
+    """
+    Creates a combined CSV file from multiple JSON files in the specified output type directory.
+    """
+    # Fetch the project directory
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Define the directory and CSV path
+    output_dir = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "output", output_type)
+    combined_csv_path = os.path.join(output_dir, "combined_success_output.csv")
+
+    # Get all JSON files in the directory
+    json_files = [f for f in os.listdir(output_dir) if f.endswith('.json')]
+    all_csv_data = []
+    common_fields = None
+
+    # Convert JSON files to CSV format and collect data
+    for json_file in json_files:
+        json_file_path = os.path.join(output_dir, json_file)
+        try:
+            with open(json_file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    data = [data]  # Ensure the data is a list
+                flattened_data = [flatten_json(item) for item in data]
+                
+                if flattened_data:
+                    if common_fields is None:
+                        common_fields = set(flattened_data[0].keys())
+                    else:
+                        common_fields.intersection_update(flattened_data[0].keys())
+                    all_csv_data.extend(flattened_data)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to process JSON file {json_file}: {str(e)}")
+
+    # Create the combined CSV file
+    common_fields = sorted(common_fields)  # Ensure consistent order of fields
+    try:
+        with open(combined_csv_path, 'w', newline='', encoding='utf-8') as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames=common_fields)
+            writer.writeheader()
+            for row in all_csv_data:
+                filtered_row = {field: row[field] for field in common_fields if field in row}
+                writer.writerow(filtered_row)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write combined CSV file: {str(e)}")
+
+    return combined_csv_path
+
+
+def flatten_json(y):
+    out = {}
+
+    def flatten(x, name=''):
+        if isinstance(x, dict):
+            for a in x:
+                flatten(x[a], name + a + '_')
+        elif isinstance(x, list):
+            i = 0
+            for a in x:
+                flatten(a, name + str(i) + '_')
+                i += 1
+        else:
+            out[name[:-1]] = x
+
+    flatten(y)
+    return out
+
 
 def download_fail_output_files(db: Session, project_id: int, convert_to_csv: bool = False):
     try:
@@ -233,30 +331,10 @@ def convert_json_to_csv(json_filepath, csv_filepath):
         print(f"Failed to convert JSON to CSV: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to convert JSON to CSV: {str(e)}")
 
-
-
-def flatten_json(y):
-    out = {}
-
-    def flatten(x, name=''):
-        if isinstance(x, dict):
-            for a in x:
-                flatten(x[a], name + a + '_')
-        elif isinstance(x, list):
-            i = 0
-            for a in x:
-                flatten(a, name + str(i) + '_')
-                i += 1
-        else:
-            out[name[:-1]] = x
-
-    flatten(y)
-    return out
-
-
 def get_file_tree(db: Session, project_id: int):
     """
     Retrieves the file tree for a specific project, sorted by file names.
+    Only includes JSON files in the output sections.
     """
     project = db.query(Project).filter(Project.id == project_id).first()
     if project is None:
@@ -268,18 +346,19 @@ def get_file_tree(db: Session, project_id: int):
     file_tree = {
         "input": get_directory_structure(input_dir),
         "output": {
-            "success": get_directory_structure(os.path.join(output_dir, "success")),
-            "fail": get_directory_structure(os.path.join(output_dir, "fail")),
+            "success": get_directory_structure(os.path.join(output_dir, "success"), only_json=True),
+            "fail": get_directory_structure(os.path.join(output_dir, "fail"), only_json=True),
         },
     }
 
     return file_tree
 
 
-def get_directory_structure(rootdir: str) -> dict:
+def get_directory_structure(rootdir: str, only_json: bool = False) -> dict:
     """
     Recursively constructs a dictionary representing the directory structure.
     The structure will be sorted by file and directory names.
+    If only_json is True, only JSON files will be included in the structure.
     """
     structure = {}
 
@@ -290,8 +369,11 @@ def get_directory_structure(rootdir: str) -> dict:
         item_path = os.path.join(rootdir, item)
         if os.path.isdir(item_path):
             # Recursively get the directory structure for subdirectories
-            structure[item] = get_directory_structure(item_path)
+            structure[item] = get_directory_structure(item_path, only_json=only_json)
         else:
+            # If only_json is True, skip non-JSON files
+            if only_json and not item.endswith('.json'):
+                continue
             # Mark the item as a file (or None, if you want a simpler output)
             structure[item] = None
 

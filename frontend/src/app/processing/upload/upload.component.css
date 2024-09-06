@@ -1,9 +1,6 @@
 .processing-container {
   display: flex;
-  height: 100vh;
-  padding: 20px;
   box-sizing: border-box;
-  gap: 20px;
   width: 100%;
   max-width: 100%;
   margin: 0;
@@ -12,7 +9,7 @@
 }
 
 .sidebar {
-  width: 350px;
+  width: 100%;
   background-color: #fdfdfd;
   border-radius: 15px;
   padding: 20px;
@@ -30,10 +27,8 @@
 }
 
 .file-tree-container {
-  max-height: 400px;
+  max-height: 500px;
   overflow-y: auto;
-  margin-bottom: 20px;
-  padding-right: 10px;
 }
 
 .mat-tree-node {
@@ -92,7 +87,7 @@
 
 .upload-section button {
   width: 100%;
-  padding: 12px;
+  padding: 10px;
   border: none;
   border-radius: 5px;
   cursor: pointer;

@@ -7,6 +7,7 @@ from typing import List
 from fastapi.responses import FileResponse
 import os
 from fastapi import Query
+from fastapi.responses import StreamingResponse
 
 router = APIRouter()
 
@@ -66,17 +67,27 @@ def download_output_files(
     return FileResponse(zip_filepath, filename=os.path.basename(zip_filepath))
 
 
-@router.get("/projects/{project_id}/download_success_output", response_class=FileResponse)
+@router.get("/projects/{project_id}/download_success_output", response_class=StreamingResponse)
 def download_success_output_files(
     project_id: int,
     db: Session = Depends(get_db),
-    convert_to_csv: bool = Query(False, description="Convert JSON to CSV before downloading")
+    convert_to_csv: bool = Query(True, description="Convert JSON to CSV before downloading")
 ):
-    zip_filepath = dashboard_crud.download_success_output_files(
-        db=db, project_id=project_id, convert_to_csv=convert_to_csv
-    )
-    return FileResponse(zip_filepath, filename=os.path.basename(zip_filepath))
+    """
+    Endpoint to download a combined CSV file from the successful output files.
+    """
+    # Generate the combined CSV file
+    csv_filepath = dashboard_crud.create_combined_csv(db=db, project_id=project_id, output_type="success")
 
+    # Open the CSV file for streaming
+    def iterfile():
+        with open(csv_filepath, mode="r", encoding="utf-8") as file:
+            yield from file
+
+    # Return CSV as a StreamingResponse
+    return StreamingResponse(iterfile(), media_type="text/csv", headers={
+        "Content-Disposition": f"attachment; filename=combined_success_output.csv"
+    })
 
 @router.get("/projects/{project_id}/download_fail_output", response_class=FileResponse)
 def download_fail_output_files(

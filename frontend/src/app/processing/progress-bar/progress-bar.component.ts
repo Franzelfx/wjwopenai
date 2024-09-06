@@ -9,28 +9,33 @@ export class ProgressBarComponent implements OnChanges {
   @Input() progress: number = 0;
   @Input() status: string = 'PENDING';
 
-  // Define statusClass based on the current status
-  get statusClass(): string {
-    switch (this.status) {
-      case 'PENDING':
-        return 'pending';
-      case 'IN_PROGRESS':
-        return 'in-progress';
-      case 'COMPLETED':
-        return 'completed';
-      case 'FAILED':
-        return 'failed';
-      default:
-        return '';
+  statusClass: string = 'pending'; // Initialize with a default class
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['progress'] || changes['status']) {
+      this.updateStatusClass();
+      console.log(`Progress: ${this.progress}, Status: ${this.status}`); // Combined log
     }
   }
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['progress']) {
-      console.log('Progress updated:', this.progress);
-    }
-    if (changes['status']) {
-      console.log('Status updated:', this.status);
+  // Update status class based on the current status
+  updateStatusClass(): void {
+    switch (this.status) {
+      case 'PENDING':
+        this.statusClass = 'pending';
+        break;
+      case 'IN_PROGRESS':
+        this.statusClass = 'in-progress';
+        break;
+      case 'COMPLETED':
+        this.statusClass = 'completed';
+        break;
+      case 'FAILED':
+        this.statusClass = 'failed';
+        break;
+      default:
+        this.statusClass = '';
+        break;
     }
   }
 }

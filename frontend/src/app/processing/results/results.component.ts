@@ -179,4 +179,30 @@ export class ResultsComponent implements OnInit {
   isSuccessFile(node: FileNode): boolean {
     return this.successDataSource.data.some((n) => n.name === node.name);
   }
+
+  downloadSuccessOutput(): void {
+    this.backendService
+      .downloadSuccessOutput(this.projectId, this.convertToCsv)
+      .subscribe((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'success_output.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      });
+  }
+
+  downloadFailOutput(): void {
+    this.backendService
+      .downloadFailOutput(this.projectId, this.convertToCsv)
+      .subscribe((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'fail_output.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      });
+  }
 }

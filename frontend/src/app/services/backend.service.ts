@@ -160,20 +160,31 @@ export class BackendService {
   // Get processing status as SSE (Server-Sent Events)
   getProcessingStatusSSE(projectId: number): Observable<MessageEvent> {
     return new Observable<MessageEvent>((observer) => {
-      const eventSource = new EventSource(
-        `${this.processingApiUrl}/status/project/${projectId}/sse`
-      );
+      // Function to establish the SSE connection
+      const connectToSSE = () => {
+        const eventSource = new EventSource(
+          `${this.processingApiUrl}/status/project/${projectId}/sse`
+        );
 
-      eventSource.onmessage = (event) => {
-        observer.next(event);
+        eventSource.onmessage = (event) => {
+          observer.next(event);
+        };
+
+        eventSource.onerror = (error) => {
+          console.error(
+            'SSE connection error, attempting to reconnect...',
+            error
+          );
+          eventSource.close(); // Close the existing connection
+          setTimeout(connectToSSE, 5000); // Attempt to reconnect after 5 seconds
+        };
+
+        // Clean up on unsubscribe
+        return () => eventSource.close();
       };
 
-      eventSource.onerror = (error) => {
-        observer.error(error);
-        eventSource.close();
-      };
-
-      return () => eventSource.close();
+      // Call the function to establish the initial connection
+      connectToSSE();
     });
   }
 
@@ -240,6 +251,14 @@ export class BackendService {
     );
     return this.http.delete<any>(
       `${this.processingApiUrl}/delete-json-file/${projectId}/${outputType}/${fileName}`
+    );
+  }
+
+  getInputFile(projectId: number, fileName: string): Observable<Blob> {
+    console.log(`Fetching input file: ${fileName} for project ${projectId}`);
+    return this.http.get(
+      `${this.processingApiUrl}/get-input-file/${projectId}/${fileName}`,
+      { responseType: 'blob' }
     );
   }
 }

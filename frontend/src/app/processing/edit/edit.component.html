@@ -1,5 +1,9 @@
-<!-- edit.component.html -->
 <div class="json-editor-container">
+  <!-- Image Display -->
+  <div *ngIf="imageUrl" class="image-container">
+    <img [src]="imageUrl" alt="Corresponding Image" class="image-preview" />
+  </div>
+
   <!-- JSON Editor -->
   <textarea id="json-editor" [(ngModel)]="jsonContent" (input)="validateJson()"></textarea>
 

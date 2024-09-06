@@ -1,4 +1,10 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ChangeDetectorRef,
+  NgZone,
+} from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { BackendService } from '../services/backend.service';
 import { Subscription } from 'rxjs';
@@ -22,7 +28,9 @@ export class ProcessingComponent implements OnInit, OnDestroy {
 
   constructor(
     private route: ActivatedRoute,
-    private backendService: BackendService
+    private backendService: BackendService,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone // Inject NgZone
   ) {}
 
   ngOnInit(): void {
@@ -44,16 +52,23 @@ export class ProcessingComponent implements OnInit, OnDestroy {
         (event: MessageEvent) => {
           try {
             const data: StatusData = JSON.parse(event.data);
-            this.progress = data.progress;
-            this.status = data.status;
-            console.log('SSE Update:', data); // Debugging log
+
+            // Ensure that the change detection is triggered correctly
+            this.ngZone.run(() => {
+              this.progress = data.progress;
+              this.status = data.status;
+              console.log('SSE Update:', data); // Debugging log
+            });
           } catch (error) {
             console.error('Error parsing SSE data:', error);
           }
         },
         (error) => {
-          console.error('Error receiving SSE:', error);
-          this.status = 'FAILED';
+          // Handle errors and make sure to trigger change detection
+          this.ngZone.run(() => {
+            console.error('Error receiving SSE:', error);
+            this.status = 'FAILED';
+          });
         }
       );
   }
@@ -63,6 +78,7 @@ export class ProcessingComponent implements OnInit, OnDestroy {
       this.sseSubscription.unsubscribe();
     }
   }
+
   onFileSelected(event: { fileName: string; outputType: string }): void {
     this.selectedFile = event; // Correctly set the selected file
   }

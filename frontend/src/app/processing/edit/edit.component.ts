@@ -19,6 +19,7 @@ export class EditComponent implements OnInit, OnChanges {
 
   jsonContent: string = '';
   isJsonValid: boolean = true;
+  imageUrl: string | null = null; // Store the image URL
 
   constructor(private backendService: BackendService) {}
 
@@ -41,19 +42,25 @@ export class EditComponent implements OnInit, OnChanges {
     }
   }
 
-submitJson(): void {
-  if (this.isJsonValid) {
-    const encodedFileName = encodeURIComponent(this.fileName);
+  submitJson(): void {
+    if (this.isJsonValid) {
+      const encodedFileName = encodeURIComponent(this.fileName);
 
-    // Parse JSON content to ensure it's sent as a proper object
-    const jsonObject = JSON.parse(this.jsonContent);
+      const jsonObject = JSON.parse(this.jsonContent);
 
-    this.backendService.updateJsonFile(this.projectId, this.outputType, encodedFileName, jsonObject).subscribe(
-      () => alert('JSON updated successfully'),
-      (error) => alert('Failed to update JSON: ' + error.message)
-    );
+      this.backendService
+        .updateJsonFile(
+          this.projectId,
+          this.outputType,
+          encodedFileName,
+          jsonObject
+        )
+        .subscribe(
+          () => alert('JSON updated successfully'),
+          (error) => alert('Failed to update JSON: ' + error.message)
+        );
+    }
   }
-}
 
   resetJson(): void {
     const encodedFileName = encodeURIComponent(this.fileName);
@@ -63,5 +70,21 @@ submitJson(): void {
         (data) => (this.jsonContent = data),
         (error) => alert('Failed to load JSON: ' + error.message)
       );
+
+    this.loadCorrespondingImage(encodedFileName); // Load the image file
+  }
+
+  loadCorrespondingImage(fileName: string): void {
+    // Assuming input file has the same name and different extension
+    const imageExtensions = ['png', 'jpeg', 'jpg', 'tif', 'tiff'];
+    for (const ext of imageExtensions) {
+      const imageName = fileName.replace('.json', `.${ext}`);
+      this.backendService.getInputFile(this.projectId, imageName).subscribe(
+        (imageBlob) => {
+          this.imageUrl = URL.createObjectURL(imageBlob); // Create an object URL for the image
+        },
+        (error) => console.warn(`Failed to load image ${imageName}:`, error)
+      );
+    }
   }
 }

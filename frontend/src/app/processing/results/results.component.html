@@ -1,50 +1,59 @@
-<!-- results.component.html -->
-<div class="results-section">
-  <h3>Successful Files</h3>
-  <input type="text" placeholder="Search Successful Files" (input)="filterSuccessFiles($event)" class="search-box" />
-  <div class="file-tree-container">
-    <mat-tree [dataSource]="filteredSuccessDataSource" [treeControl]="treeControl" class="mat-tree">
-      <!-- Folder Node -->
-      <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
-        <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
-          <mat-icon>{{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}</mat-icon>
-        </button>
-        <span (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name" [class.file]="!node.expandable">
-          {{node.name}}
-        </span>
-      </mat-tree-node>
+<div class="processing-container">
+  <!-- Checkbox for CSV Conversion -->
 
-      <!-- File Node -->
-      <mat-tree-node *matTreeNodeDef="let node; when: !hasChild" matTreeNodePadding>
-        <span class="file-node" (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name">
-          <mat-icon class="file-icon">insert_drive_file</mat-icon>
-          {{node.name}}
-        </span>
-      </mat-tree-node>
-    </mat-tree>
+  <!-- Results Section for Successful Files -->
+  <div class="results-section">
+    <h3>Successful Files</h3>
+    <input type="text" placeholder="Search Successful Files" (input)="filterSuccessFiles($event)" class="search-box" />
+    <div class="file-tree-container">
+      <mat-tree [dataSource]="filteredSuccessDataSource" [treeControl]="treeControl" class="mat-tree">
+        <!-- Folder Node -->
+        <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
+          <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
+            <mat-icon>{{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}</mat-icon>
+          </button>
+          <span (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name" [class.file]="!node.expandable">
+            {{node.name}}
+          </span>
+        </mat-tree-node>
+
+        <!-- File Node -->
+        <mat-tree-node *matTreeNodeDef="let node; when: !hasChild" matTreeNodePadding>
+          <span class="file-node" (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name">
+            <mat-icon class="file-icon">insert_drive_file</mat-icon>
+            {{node.name}}
+          </span>
+        </mat-tree-node>
+      </mat-tree>
+    </div>
+    <button mat-raised-button color="primary" (click)="downloadSuccessOutput()">Download as CSV</button>
   </div>
 
-  <h3>Failed Files</h3>
-  <input type="text" placeholder="Search Failed Files" (input)="filterFailedFiles($event)" class="search-box" />
-  <div class="file-tree-container">
-    <mat-tree [dataSource]="filteredFailDataSource" [treeControl]="treeControl" class="mat-tree">
-      <!-- Folder Node -->
-      <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
-        <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
-          <mat-icon>{{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}</mat-icon>
-        </button>
-        <span (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name" [class.file]="!node.expandable">
-          {{node.name}}
-        </span>
-      </mat-tree-node>
+  <!-- Results Section for Failed Files -->
+  <div class="results-section">
+    <h3>Failed Files</h3>
+    <input type="text" placeholder="Search Failed Files" (input)="filterFailedFiles($event)" class="search-box" />
+    <div class="file-tree-container">
+      <mat-tree [dataSource]="filteredFailDataSource" [treeControl]="treeControl" class="mat-tree">
+        <!-- Folder Node -->
+        <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
+          <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
+            <mat-icon>{{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}</mat-icon>
+          </button>
+          <span (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name" [class.file]="!node.expandable">
+            {{node.name}}
+          </span>
+        </mat-tree-node>
 
-      <!-- File Node -->
-      <mat-tree-node *matTreeNodeDef="let node; when: !hasChild" matTreeNodePadding>
-        <span class="file-node" (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name">
-          <mat-icon class="file-icon">insert_drive_file</mat-icon>
-          {{node.name}}
-        </span>
-      </mat-tree-node>
-    </mat-tree>
+        <!-- File Node -->
+        <mat-tree-node *matTreeNodeDef="let node; when: !hasChild" matTreeNodePadding>
+          <span class="file-node" (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name">
+            <mat-icon class="file-icon">insert_drive_file</mat-icon>
+            {{node.name}}
+          </span>
+        </mat-tree-node>
+      </mat-tree>
+    </div>
+    <button mat-raised-button color="primary" (click)="downloadFailOutput()">Download as CSV</button>
   </div>
 </div>

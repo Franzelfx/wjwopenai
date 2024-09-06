@@ -12,6 +12,7 @@ from models.processing import StatusEnum
 from loguru import logger
 from services.engine import OCRProcessor  # Import the OCRProcessor class
 from fastapi import Body
+import io
 
 router = APIRouter()
 
@@ -43,29 +44,35 @@ def get_status_by_project(project_id: int, db: Session = Depends(get_db)):
 async def status_sse_by_project(project_id: int, db: Session = Depends(get_db)):
     def event_generator():
         while True:
-            status = processing_crud.get_processing_status_by_project_id(db=db, project_id=project_id)
-            if status is None:
-                yield "event: error\ndata: Status not found\n\n"
+            try:
+                # Fetch the latest status from the database
+                db = next(get_db())  # Re-fetch the DB session to ensure the latest data
+                status = processing_crud.get_processing_status_by_project_id(db=db, project_id=project_id)
+                
+                if status is None:
+                    yield "event: error\ndata: Status not found\n\n"
+                    break
+
+                # Convert the StatusEnum to its value (string)
+                valid_status = status.status.value if isinstance(status.status, StatusEnum) else StatusEnum.PENDING.value
+                data = {
+                    "status": valid_status,
+                    "progress": status.progress,
+                    "processed_files": status.processed_files,
+                    "total_files": status.total_files,
+                    "processed_file_names": status.processed_file_names.strip(",").split(",") if status.processed_file_names else [],
+                    "start_time": status.start_time.strftime("%Y-%m-%d %H:%M:%S") if status.start_time else "",
+                    "end_time": status.end_time.strftime("%Y-%m-%d %H:%M:%S") if status.end_time else "",
+                }
+                # Send the updated data to the client
+                yield f"data: {json.dumps(data)}\n\n"
+
+                # Send a heartbeat message every 10 seconds
+                time.sleep(2)  # Data update interval
+                yield f"event: heartbeat\ndata: keep-alive\n\n"
+            except Exception as e:
+                yield f"event: error\ndata: {str(e)}\n\n"
                 break
-
-            # Ensure processed_file_names is a list
-            processed_file_names_list = status.processed_file_names.strip(",").split(",") if status.processed_file_names else []
-
-            # Convert the StatusEnum to its value (string)
-            valid_status = status.status.value if isinstance(status.status, StatusEnum) else StatusEnum.PENDING.value
-
-            data = {
-                "status": valid_status,  # Pass the status as a string
-                "progress": status.progress,
-                "processed_files": status.processed_files,
-                "total_files": status.total_files,
-                "processed_file_names": processed_file_names_list,
-                "start_time": status.start_time.strftime("%Y-%m-%d %H:%M:%S") if status.start_time else "",
-                "end_time": status.end_time.strftime("%Y-%m-%d %H:%M:%S") if status.end_time else "",
-            }
-
-            yield f"data: {json.dumps(data)}\n\n"
-            time.sleep(2)  # Adjust based on how often you want updates
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -122,3 +129,22 @@ def delete_json_file(project_id: int, output_type: str, file_name: str, db: Sess
     # Decode the URL-encoded file name
     decoded_file_name = unquote(file_name)
     return processing_crud.delete_json_file(db, project_id, output_type, decoded_file_name)
+
+@router.get("/get-input-file/{project_id}/{file_name}", response_class=StreamingResponse)
+def get_input_file_endpoint(project_id: int, file_name: str, db: Session = Depends(get_db)):
+    """Endpoint to retrieve the content of an input file."""
+    # Properly decode the URL-encoded file name
+    decoded_file_name = unquote(file_name)
+
+    # Extract the folder name from the file name (characters before the first underscore)
+    folder_name = decoded_file_name.split('_')[0].split(' ')[0]
+
+    # Get the input file content from CRUD
+    file_content = processing_crud.get_input_file(db, project_id, decoded_file_name, folder_name)
+
+    # Determine the correct media type for the response
+    content_type = "application/octet-stream"
+    if file_name.lower().endswith(('png', 'jpeg', 'jpg', 'tif', 'tiff')):
+        content_type = f"image/{file_name.split('.')[-1].lower()}"
+
+    return StreamingResponse(io.BytesIO(file_content), media_type=content_type)

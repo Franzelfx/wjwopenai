@@ -1,5 +1,5 @@
 Bitte gib den kompletten Inhalt des Bildes als json Format zurück, bitte gib nur json zurück, keine weiteren Informationen. Bitte prüfe vor der Ausgabe, ob die Adresse existiert.
-Bitte gib, wenn möglich folgende Informationen zurück:
+Bitte gib, wenn möglich folgende Informationen zurück und keine weiteren:
 
 Dateiname
 Aktenkürzel
@@ -11,5 +11,3 @@ Hausnummer
 Gemarkung
 Flurstücknummer
 Bezeichnung
-
-Interpretiere hierbei die Informationen aus dem Bild und gib sie in json Format zurück. Gib Bitte auch alle weiteren Infos zurück, die du aus dem Bild interpretieren kannst, mindestens jedoch die vorgegebenen Informationen.

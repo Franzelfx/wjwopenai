@@ -7,7 +7,8 @@ from fastapi import HTTPException
 from models.dashboard import Project
 from models.processing import ProcessingStatus, StatusEnum
 from schemas.processing import ProcessingStatusCreate, ProcessingStatusUpdate, ProcessingStatusResponse
-
+from fastapi.responses import FileResponse
+from urllib.parse import unquote  # Import unquote for URL decoding
 # Define the base directory for the projects
 PROJECTS_BASE_DIR = "projects"
 
@@ -55,7 +56,7 @@ def get_json_file(db: Session, project_id: int, output_type: str, file_name: str
         raise HTTPException(status_code=404, detail="File not found")
 
     try:
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8') as file:
             return file.read()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
@@ -76,9 +77,9 @@ def update_json_file(db: Session, project_id: int, output_type: str, file_name: 
         # Convert the string content back to a dictionary
         content_dict = json.loads(content)
 
-        # Write the JSON content with proper indentation
-        with open(file_path, 'w') as file:
-            json.dump(content_dict, file, indent=4)  # Indentation set to 4 spaces
+        # Write the JSON content with proper indentation and UTF-8 encoding
+        with open(file_path, 'w', encoding='utf-8') as file:
+            json.dump(content_dict, file, indent=4, ensure_ascii=False)  # Use ensure_ascii=False to keep German characters
 
         return {"status": "success", "message": f"File '{file_name}' successfully updated."}
     except json.JSONDecodeError:
@@ -103,3 +104,50 @@ def delete_json_file(db: Session, project_id: int, output_type: str, file_name: 
         return {"status": "success", "message": f"File '{file_name}' successfully deleted."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
+
+def find_file_in_directory(directory: str, target_file: str) -> Optional[str]:
+    """
+    Recursively search for a file in a given directory and its subdirectories.
+
+    Args:
+        directory (str): The base directory to start searching from.
+        target_file (str): The name of the file to find.
+
+    Returns:
+        Optional[str]: The full path to the file if found, otherwise None.
+    """
+    for root, _, files in os.walk(directory):
+        if target_file in files:
+            return os.path.join(root, target_file)
+    return None
+
+
+def get_input_file(db: Session, project_id: int, file_name: str, folder_name: str):
+    """Retrieve the input file content for a given project."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Decode the filename
+    decoded_file_name = unquote(file_name)
+
+    # Remove "_invalid" from the file name if present
+    decoded_file_name = decoded_file_name.replace("_invalid", "")
+
+    # Define the base path for input files, starting from the "input" directory
+    base_path = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "input")
+
+    # Search for the file within the input directory and all subdirectories
+    file_path = find_file_in_directory(base_path, decoded_file_name)
+
+    if not file_path:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    print(f"Found file at: {file_path}")  # Debugging output to verify the path
+
+    try:
+        # Open the file in binary mode to handle image formats
+        with open(file_path, 'rb') as file:
+            return file.read()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
