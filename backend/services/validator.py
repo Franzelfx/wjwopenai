@@ -95,6 +95,10 @@ class JSONValidator:
         try:
             # Versucht, den bereinigten JSON-Inhalt zu dekodieren
             json_data = json.loads(cleaned_content)
+            
+            # Add the "Scan" (filename) to the JSON content
+            json_data['Scan'] = filename
+            
             decoded_json_data = JSONValidator.decode_unicode_in_json(json_data)
             output_path = os.path.join(full_output_dir, f"{filename}.json")
             
@@ -115,3 +119,4 @@ class JSONValidator:
                 
             logger.info(f"Ungültiger JSON-Inhalt in der Datei gespeichert: {fail_output_path}")
             return fail_output_path
+
