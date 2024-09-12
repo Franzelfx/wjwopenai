@@ -204,7 +204,7 @@ def create_combined_csv(db: Session, project_id: int, output_type: str) -> str:
     # Get all JSON files in the directory
     json_files = [f for f in os.listdir(output_dir) if f.endswith('.json')]
     all_csv_data = []
-    common_fields = None
+    all_fields = set()
 
     # Convert JSON files to CSV format and collect data
     for json_file in json_files:
@@ -217,23 +217,22 @@ def create_combined_csv(db: Session, project_id: int, output_type: str) -> str:
                 flattened_data = [flatten_json(item) for item in data]
                 
                 if flattened_data:
-                    if common_fields is None:
-                        common_fields = set(flattened_data[0].keys())
-                    else:
-                        common_fields.intersection_update(flattened_data[0].keys())
+                    for row in flattened_data:
+                        all_fields.update(row.keys())  # Collect all fields from all files
                     all_csv_data.extend(flattened_data)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to process JSON file {json_file}: {str(e)}")
 
     # Create the combined CSV file
-    common_fields = sorted(common_fields)  # Ensure consistent order of fields
+    all_fields = sorted(all_fields)  # Ensure consistent order of fields
     try:
         with open(combined_csv_path, 'w', newline='', encoding='utf-8') as csv_file:
-            writer = csv.DictWriter(csv_file, fieldnames=common_fields)
+            writer = csv.DictWriter(csv_file, fieldnames=all_fields)
             writer.writeheader()
             for row in all_csv_data:
-                filtered_row = {field: row[field] for field in common_fields if field in row}
-                writer.writerow(filtered_row)
+                # Fill missing values with None (or an empty string if preferred)
+                filled_row = {field: row.get(field, None) for field in all_fields}
+                writer.writerow(filled_row)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to write combined CSV file: {str(e)}")
 
