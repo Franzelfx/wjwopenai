@@ -6,19 +6,6 @@ from loguru import logger
 
 class JSONValidator:
     @staticmethod
-    def clean_json_content(content: str) -> str:
-        """
-        Bereinigt den JSON-Inhalt durch Entfernen unnötiger Zeichen, wie z.B. Codeblock-Markierungen.
-        :param content: Der zu bereinigende JSON-String.
-        :return: Ein bereinigter JSON-String.
-        """
-        # Entfernt übliche JSON-Codeblock-Markierungen (wie ```json ... ```)
-        content = re.sub(r'```json\s*|\s*```', '', content)
-        # Entfernt führende und nachfolgende Leerzeichen
-        content = content.strip()
-        return content
-
-    @staticmethod
     def decode_unicode_in_json(json_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Dekodiert rekursiv Unicode-Escape-Sequenzen in den JSON-Daten zu tatsächlichen Zeichen.
@@ -31,8 +18,8 @@ class JSONValidator:
             return [JSONValidator.decode_unicode_in_json(element) for element in json_data]
         elif isinstance(json_data, str):
             try:
-                # Dekodiert den String, indem UTF-8 angenommen wird
-                return json_data.encode('latin1').decode('utf-8')
+                # Korrekte Dekodierung von Unicode-Escapes in UTF-8
+                return json_data.encode('utf-8').decode('utf-8')
             except UnicodeDecodeError:
                 # Falls die Dekodierung fehlschlägt, wird der String unverändert zurückgegeben
                 return json_data
@@ -55,21 +42,6 @@ class JSONValidator:
         except UnicodeDecodeError:
             logger.warning("UTF-8-Dekodierung fehlgeschlagen, versuche ISO-8859-1")
             return content.decode('ISO-8859-1')
-
-    @staticmethod
-    def is_valid_json(content: str) -> bool:
-        """
-        Validiert, ob der gegebene Inhalt nach der Bereinigung ein gültiger JSON-String ist.
-        :param content: Der String, der als JSON validiert werden soll.
-        :return: True, wenn gültig, False andernfalls.
-        """
-        try:
-            cleaned_content = JSONValidator.clean_json_content(content)
-            json.loads(cleaned_content)
-            return True
-        except ValueError as e:
-            logger.error(f"Ungültiger JSON-Inhalt: {str(e)}")
-            return False
 
     @staticmethod
     def save_cleaned_json(output_dir: str, filename: str, content: Optional[bytes], success: bool = True) -> str:
@@ -119,4 +91,3 @@ class JSONValidator:
                 
             logger.info(f"Ungültiger JSON-Inhalt in der Datei gespeichert: {fail_output_path}")
             return fail_output_path
-
