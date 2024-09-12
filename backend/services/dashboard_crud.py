@@ -239,6 +239,7 @@ def create_combined_csv(db: Session, project_id: int, output_type: str) -> str:
     return combined_csv_path
 
 
+
 def flatten_json(y):
     out = {}
 
