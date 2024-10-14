@@ -108,3 +108,31 @@ def delete_input_file_or_folder(
     db: Session = Depends(get_db)
 ):
     return dashboard_crud.delete_input_file_or_folder(db=db, project_id=project_id, path=path)
+
+@router.get("/projects/{project_id}/download_success_excel", response_class=FileResponse)
+def download_success_excel_files(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint to download an Excel file with marked cells from the successful output files.
+    """
+    # Generate the Excel file and get its path
+    excel_filepath = dashboard_crud.generate_excel_for_project(db=db, project_id=project_id, output_type="success")
+
+    # Return the file as a response
+    return FileResponse(excel_filepath, filename=os.path.basename(excel_filepath))
+
+
+@router.get("/projects/{project_id}/download_fail_excel", response_class=FileResponse)
+def download_fail_excel_files(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint to download an Excel file with marked cells from the failed output files.
+    Cells with missing data are marked red, and cells with valid address information are marked green.
+    """
+    excel_filepath = dashboard_crud.generate_excel_for_project(db=db, project_id=project_id)
+
+    return FileResponse(excel_filepath, filename=os.path.basename(excel_filepath))

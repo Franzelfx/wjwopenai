@@ -4,6 +4,10 @@ import json
 import csv
 import zipfile
 import traceback
+from fastapi import HTTPException, Response
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill
+from openpyxl.utils import get_column_letter
 from datetime import datetime
 from sqlalchemy.orm import Session
 from models.dashboard import Project
@@ -11,8 +15,13 @@ from schemas.dashboard import ProjectCreate, ProjectUpdate
 from fastapi import HTTPException, UploadFile
 from models.processing import ProcessingStatus, StatusEnum
 
+
 # Define the base directory for the projects
 PROJECTS_BASE_DIR = "projects"
+# Define the colors for missing data (red) and present address (green)
+RED_FILL = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+GREEN_FILL = PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+
 
 def create_project(db: Session, project: ProjectCreate):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -201,35 +210,15 @@ def create_combined_csv(db: Session, project_id: int, output_type: str) -> str:
     output_dir = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "output", output_type)
     combined_csv_path = os.path.join(output_dir, "combined_success_output.csv")
 
-    # Get all JSON files in the directory
-    json_files = [f for f in os.listdir(output_dir) if f.endswith('.json')]
-    all_csv_data = []
-    all_fields = set()
-
-    # Convert JSON files to CSV format and collect data
-    for json_file in json_files:
-        json_file_path = os.path.join(output_dir, json_file)
-        try:
-            with open(json_file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    data = [data]  # Ensure the data is a list
-                flattened_data = [flatten_json(item) for item in data]
-                
-                if flattened_data:
-                    for row in flattened_data:
-                        all_fields.update(row.keys())  # Collect all fields from all files
-                    all_csv_data.extend(flattened_data)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to process JSON file {json_file}: {str(e)}")
+    # Process JSON files and collect data
+    all_data, all_fields = process_json_files(output_dir)
 
     # Create the combined CSV file
-    all_fields = sorted(all_fields)  # Ensure consistent order of fields
     try:
         with open(combined_csv_path, 'w', newline='', encoding='utf-8') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=all_fields)
             writer.writeheader()
-            for row in all_csv_data:
+            for row in all_data:
                 # Fill missing values with None (or an empty string if preferred)
                 filled_row = {field: row.get(field, None) for field in all_fields}
                 writer.writerow(filled_row)
@@ -239,6 +228,35 @@ def create_combined_csv(db: Session, project_id: int, output_type: str) -> str:
     return combined_csv_path
 
 
+def process_json_files(output_dir: str) -> tuple[list[dict], list[str]]:
+    """
+    Processes all JSON files in the given directory and returns a list of flattened data
+    and a list of all fields (columns) found across the JSON files.
+    
+    :param output_dir: The directory where JSON files are located
+    :return: A tuple containing a list of dictionaries (flattened data) and a sorted list of all fields (column names)
+    """
+    json_files = [f for f in os.listdir(output_dir) if f.endswith('.json')]
+    all_data = []
+    all_fields = set()
+
+    for json_file in json_files:
+        json_file_path = os.path.join(output_dir, json_file)
+        try:
+            with open(json_file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    data = [data]  # Ensure data is always a list
+                flattened_data = [flatten_json(item) for item in data]
+                
+                if flattened_data:
+                    for row in flattened_data:
+                        all_fields.update(row.keys())  # Collect all fields from all files
+                    all_data.extend(flattened_data)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to process JSON file {json_file}: {str(e)}")
+
+    return all_data, sorted(all_fields)
 
 def flatten_json(y):
     out = {}
@@ -415,3 +433,64 @@ def delete_input_file_or_folder(db: Session, project_id: int, path: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete '{path}': {str(e)}")
 
+def generate_excel_for_project(db: Session, project_id: int, output_type: str = "success") -> str:
+    """
+    Generates an Excel file for a specific project, marking cells red where data is missing and green
+    where address information is complete. Returns the path to the generated Excel file.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Define the output directory and ensure it exists
+    output_dir = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "output", output_type)
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Process JSON files and collect data
+    all_data, all_fields = process_json_files(output_dir)
+
+    if not all_data:
+        raise HTTPException(status_code=404, detail="No data available")
+
+    # Create an Excel workbook and sheet
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Project Data"
+
+    # Write headers
+    ws.append(all_fields)
+
+    # Write data rows and apply formatting
+    RED_FILL = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+    GREEN_FILL = PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+
+    for row_idx, row in enumerate(all_data, start=2):
+        for col_idx, field in enumerate(all_fields, start=1):
+            value = row.get(field, None)
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+
+            # Mark cells red if data is missing
+            if value is None or value == "":
+                cell.fill = RED_FILL
+
+            # Mark cells green if the field is related to address and not missing
+            if "address" in field.lower() and value:
+                cell.fill = GREEN_FILL
+
+    # Adjust column sizes to fit the longest text in each column
+    for col_idx, col in enumerate(ws.columns, 1):
+        max_length = 0
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        ws.column_dimensions[get_column_letter(col_idx)].width = max_length + 2
+
+    # Save the workbook to a file
+    file_path = os.path.join(output_dir, f"{project.name}_{output_type}_output.xlsx")
+    wb.save(file_path)
+
+    # Return the path to the generated Excel file
+    return file_path

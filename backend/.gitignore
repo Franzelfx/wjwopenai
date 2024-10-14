@@ -1,2 +1,5 @@
 *projects*
 *.db*
+*.xml
+*.csv
+*.zip

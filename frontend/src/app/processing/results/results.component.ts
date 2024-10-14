@@ -1,4 +1,3 @@
-// results.component.ts
 import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core';
 import { FlatTreeControl } from '@angular/cdk/tree';
 import {
@@ -6,6 +5,7 @@ import {
   MatTreeFlattener,
 } from '@angular/material/tree';
 import { BackendService } from '../../services/backend.service';
+import { saveAs } from 'file-saver'; // Required for saving files
 
 interface FileNode {
   name: string;
@@ -193,6 +193,14 @@ export class ResultsComponent implements OnInit {
       });
   }
 
+  downloadSuccessExcel(): void {
+    this.backendService
+      .downloadSuccessExcel(this.projectId)
+      .subscribe((blob) => {
+        saveAs(blob, 'success_output.xlsx');
+      });
+  }
+
   downloadFailOutput(): void {
     this.backendService
       .downloadFailOutput(this.projectId, this.convertToCsv)
@@ -204,5 +212,11 @@ export class ResultsComponent implements OnInit {
         a.click();
         window.URL.revokeObjectURL(url);
       });
+  }
+
+  downloadFailExcel(): void {
+    this.backendService.downloadFailExcel(this.projectId).subscribe((blob) => {
+      saveAs(blob, 'fail_output.xlsx');
+    });
   }
 }

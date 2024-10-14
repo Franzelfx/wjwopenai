@@ -1,6 +1,4 @@
 <div class="processing-container">
-  <!-- Checkbox for CSV Conversion -->
-
   <!-- Results Section for Successful Files -->
   <div class="results-section">
     <h3>Successful Files</h3>
@@ -26,7 +24,10 @@
         </mat-tree-node>
       </mat-tree>
     </div>
-    <button mat-raised-button color="primary" (click)="downloadSuccessOutput()">Download as CSV</button>
+    <div class="button-container">
+      <button mat-raised-button color="primary" (click)="downloadSuccessOutput()">Download as CSV</button>
+      <button mat-raised-button color="accent" (click)="downloadSuccessExcel()">Download as Excel</button>
+    </div>
   </div>
 
   <!-- Results Section for Failed Files -->
@@ -54,6 +55,9 @@
         </mat-tree-node>
       </mat-tree>
     </div>
-    <button mat-raised-button color="primary" (click)="downloadFailOutput()">Download as CSV</button>
+    <div class="button-container">
+      <button mat-raised-button color="primary" (click)="downloadFailOutput()">Download as CSV</button>
+      <button mat-raised-button color="accent" (click)="downloadFailExcel()">Download as Excel</button>
+    </div>
   </div>
 </div>

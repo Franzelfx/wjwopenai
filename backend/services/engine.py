@@ -6,16 +6,32 @@ import requests
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
+from loguru import logger
+import numpy as np
 from models.processing import ProcessingStatus, StatusEnum
 from models.dashboard import Project
-from loguru import logger
-from services.validator import JSONValidator
+from dotenv import load_dotenv
+from tqdm import tqdm
+import tiktoken
+import chromadb
+import uuid
+from chromadb.config import Settings
+
+# Load environment variables from .env
+load_dotenv()
 
 # Constants
 SUPPORTED_IMAGE_FORMATS = [".png", ".jpg", ".jpeg", ".tif", ".tiff"]
-OPENAI_API_KEY = "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"
-OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-MX_TOKENS = 3000
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_URL = os.getenv("OPENAI_API_URL", "https://api.openai.com/v1/chat/completions")
+MX_TOKENS = 10000
+VECTOR_STORE_INPUT_PATH = os.getenv("VECTOR_STORE_INPUT_PATH", "./tools/geodata/json")
+VECTOR_STORE_OUTPUT_PATH = os.getenv("VECTOR_STORE_OUTPUT_PATH", "./vector_store")
+MAX_TOKENS = 4096
+
+# Ensure VECTOR_STORE_INPUT_PATH is set
+if not VECTOR_STORE_INPUT_PATH:
+    raise ValueError("VECTOR_STORE_INPUT_PATH is not set. Please ensure the .env file contains this variable.")
 
 # Configure OpenAI API key
 headers = {
@@ -23,28 +39,46 @@ headers = {
     "Content-Type": "application/json"
 }
 
-class OCRProcessor:
-    _processors = {}  # Class-level dictionary to store processors by project_id
+import chromadb
 
+class OCRProcessor:
     def __init__(self, project_id: int, db: Session):
+        """
+        Initialize the OCRProcessor with a project ID and database session.
+        This uses a persistent Chroma client.
+        """
         self.db = db
         self.project_id = project_id
         self.project = self._get_project(project_id)
         self.input_dir = f"projects/{self.project.directory_name}/input"
         self.output_dir = f"projects/{self.project.directory_name}/output"
-        self.prompt_file_path = f"prompt.md"
         self.processing_status = self._get_processing_status(project_id)
         self._stop_flag = False
         self.current_index = 0  # Track the current index for resuming
 
+        # Initialize Chroma persistent client
+        self.client = chromadb.PersistentClient(path=VECTOR_STORE_OUTPUT_PATH)  # Use the environment variable for persistence path
+
+        self.collection_name = f"project_{self.project_id}_embeddings"
+
+        try:
+            # Try to get the collection, if it doesn't exist, create it
+            collections = self.client.list_collections()
+            collection_names = [col.name for col in collections]
+
+            if self.collection_name in collection_names:
+                self.collection = self.client.get_collection(self.collection_name)
+                logger.info(f"Found existing ChromaDB collection: {self.collection_name}")
+            else:
+                self.collection = self.client.create_collection(self.collection_name)
+                logger.info(f"Created new ChromaDB collection: {self.collection_name}")
+        
+        except Exception as e:
+            logger.error(f"Failed to initialize ChromaDB collection for project {self.project_id}: {str(e)}")
+            raise Exception(f"Failed to initialize ChromaDB collection for project {self.project_id}")
+
         logger.info(f"OCRProcessor initialized for project {self.project.directory_name}")
 
-        # Store this instance in the class-level dictionary
-        OCRProcessor._processors[project_id] = self
-
-    @staticmethod
-    def get_processor(project_id: int):
-        return OCRProcessor._processors.get(project_id)
 
     def _get_project(self, project_id: int) -> Project:
         logger.debug(f"Fetching project with ID {project_id}")
@@ -88,72 +122,88 @@ class OCRProcessor:
             logger.warning("No image files found in input directory.")
         return image_files
 
-    def load_prompt_file(self) -> Optional[str]:
-        if os.path.exists(self.prompt_file_path):
-            logger.info(f"Loading prompt file from {self.prompt_file_path}")
-            with open(self.prompt_file_path, 'r', encoding='utf-8') as file:
-                return file.read()
-        else:
-            logger.warning(f"Prompt file not found at {self.prompt_file_path}")
-            return None
+    def chunk_text(self, text: str, max_tokens: int) -> List[str]:
+        """
+        Split a large text into chunks that fit within the token limit of the model.
+        """
+        tokenizer = tiktoken.get_encoding("cl100k_base")  # Use appropriate tokenizer for counting tokens
+        tokens = tokenizer.encode(text)
         
-    def process_images(self, resume: bool = False):
-        images = self.list_image_files()
-        total_files = len(images)
-        logger.info(f"Total images found for processing: {total_files}")
+        chunks = []
+        for i in range(0, len(tokens), max_tokens):
+            chunk_tokens = tokens[i:i + max_tokens]
+            chunk_text = tokenizer.decode(chunk_tokens)
+            chunks.append(chunk_text)
         
-        if total_files == 0:
-            self.update_processing_status(StatusEnum.FAILED, 100, end_time=datetime.datetime.utcnow())
-            logger.error("No images found for processing.")
-            raise Exception("No images found for processing.")
+        return chunks
 
-        # Empty the output fail and success directories if not resuming
-        if not resume:
-            for sub_dir in ["fail", "success"]:
-                full_output_dir = os.path.join(self.output_dir, sub_dir)
-                for file in os.listdir(full_output_dir):
-                    os.remove(os.path.join(full_output_dir, file))
+    def generate_vector_store(self):
+        """Generate a Chroma vector store by processing addresses from JSON files."""
+        concatenated_addresses = ""
+        json_files = [os.path.join(root, file) for root, _, files in os.walk(VECTOR_STORE_INPUT_PATH) for file in files if file.endswith(".json")]
 
-        prompt_text = self.load_prompt_file()
-        
-        if not prompt_text:
-            self.update_processing_status(StatusEnum.FAILED, 100, end_time=datetime.datetime.utcnow())
-            logger.error("Prompt file not found. Stopping processing.")
-            raise Exception("Prompt file not found.")
+        if not json_files:
+            logger.error("No JSON files found in the input directory.")
+            return
 
-        for index in range(self.current_index, total_files):
-            if self._stop_flag:
-                logger.info("Processing has been stopped.")
-                self.current_index = index  # Save the current index for resuming later
-                progress = int((index / total_files) * 100)
-                self.update_processing_status(StatusEnum.PAUSED, progress, end_time=None)
-                return
-
-            image_path = images[index]
-            logger.info(f"Processing image {index + 1}/{total_files}: {image_path}")
+        # Read JSON files and concatenate addresses
+        for file_path in tqdm(json_files, desc="Processing JSON files", unit="file"):
             try:
-                response_json = self.call_openai_api(image_path, prompt_text)
-                if response_json:
-                    content = response_json.get("choices", [{}])[0].get("message", {}).get("content", "")
-                    if JSONValidator.is_valid_json(content):
-                        JSONValidator.save_cleaned_json(self.output_dir, Path(image_path).stem, content.encode('utf-8'), success=True)
-                        logger.info(f"Successfully processed and saved JSON for image: {image_path}")
-                    else:
-                        JSONValidator.save_cleaned_json(self.output_dir, Path(image_path).stem, content.encode('utf-8'), success=False)
-                        logger.error(f"Invalid JSON content for image: {image_path}")
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+                    if isinstance(data, list):
+                        for item in data:
+                            address = item.get("Address", "N/A")
+                            if address != "N/A":
+                                concatenated_addresses += address + ", "
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to decode JSON file {file_path}: {str(e)}")
+
+        # Trim trailing comma and space
+        concatenated_addresses = concatenated_addresses.rstrip(", ")
+
+        if concatenated_addresses:
+            # Chunk and embed text
+            chunks = self.chunk_text(concatenated_addresses, MAX_TOKENS)
+            for chunk in tqdm(chunks, desc="Generating embeddings", unit="chunk"):
+                embedding = self.get_text_embedding(chunk)
+                if embedding is not None:
+                    # Generate a unique ID for each embedding
+                    unique_id = str(uuid.uuid4())
+                    
+                    # Add embedding, document, and ID to Chroma collection
+                    self.collection.add(embeddings=[embedding], documents=[chunk], ids=[unique_id])
+                    logger.info(f"Added chunk embeddings to project {self.project_id}'s Chroma vector store with ID {unique_id}.")
+
+    def get_text_embedding(self, text: str) -> Optional[List[float]]:
+        """Get text embeddings using OpenAI API."""
+        payload = {
+            "model": "text-embedding-ada-002",
+            "input": text,
+        }
+
+        try:
+            response = requests.post("https://api.openai.com/v1/embeddings", headers=headers, json=payload)
+            if response.status_code == 200:
+                embedding = response.json().get("data", [])[0].get("embedding", [])
+                if embedding:
+                    return embedding
                 else:
-                    JSONValidator.save_cleaned_json(self.output_dir, Path(image_path).stem, None, success=False)
-                    logger.error(f"Invalid JSON response for image: {image_path}")
-            except Exception as e:
-                JSONValidator.save_cleaned_json(self.output_dir, Path(image_path).stem, None, success=False)
-                logger.error(f"Failed to process image {image_path}: {str(e)}")
+                    logger.error("Failed to extract embedding from response.")
+            else:
+                logger.error(f"Failed to get text embedding: {response.text}")
+        except Exception as e:
+            logger.error(f"Error while getting text embedding: {str(e)}")
+        return None
 
-            progress = int(((index + 1) / total_files) * 100)
-            self.update_processing_status(StatusEnum.IN_PROGRESS, progress)
-            logger.info(f"Progress updated to {progress}%")
+    def query_vector_store(self, query: str, n_results: int = 5):
+        """Query the project-specific Chroma vector store."""
+        embedding = self.get_text_embedding(query)
+        if embedding:
+            results = self.collection.query(query_embeddings=[embedding], n_results=n_results)
+            return results.get('documents', [])
+        return []
 
-        self.update_processing_status(StatusEnum.COMPLETED, 100, end_time=datetime.datetime.utcnow())
-        logger.info("OCR processing completed successfully")
 
     def call_openai_api(self, image_path: str, prompt_text: Optional[str] = None) -> Optional[Dict[str, Any]]:
         logger.debug(f"Calling OpenAI API for image {image_path}")
@@ -184,6 +234,61 @@ class OCRProcessor:
         else:
             logger.error(f"OpenAI API request failed with status code {response.status_code}: {response.text}")
             return None
+
+    def process_images(self, resume: bool = False):
+        images = self.list_image_files()
+        total_files = len(images)
+        logger.info(f"Total images found for processing: {total_files}")
+        
+        if total_files == 0:
+            self.update_processing_status(StatusEnum.FAILED, 100, end_time=datetime.datetime.utcnow())
+            logger.error("No images found for processing.")
+            raise Exception("No images found for processing.")
+
+        # Prompt text is in file "backend/prompt.md"
+        prompt_text = ""
+        with open("./prompt.md", "r") as f:
+            prompt_text = f.read()
+
+        for index in range(self.current_index, total_files):
+            if self._stop_flag:
+                logger.info("Processing has been stopped.")
+                self.current_index = index  # Save the current index for resuming later
+                progress = int((index / total_files) * 100)
+                self.update_processing_status(StatusEnum.PAUSED, progress, end_time=None)
+                return
+
+            image_path = images[index]
+            logger.info(f"Processing image {index + 1}/{total_files}: {image_path}")
+            try:
+                response_json = self.call_openai_api(image_path, prompt_text)
+                if response_json:
+                    content = response_json.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    if content:
+                        output_file = os.path.join(self.output_dir, f"{Path(image_path).stem}.json")
+                        with open(output_file, 'w', encoding='utf-8') as f:
+                            json.dump(content, f)
+                        logger.info(f"Successfully processed and saved JSON for image: {image_path}")
+                    else:
+                        logger.error(f"Invalid content for image: {image_path}")
+            except Exception as e:
+                logger.error(f"Failed to process image {image_path}: {str(e)}")
+
+            progress = int(((index + 1) / total_files) * 100)
+            self.update_processing_status(StatusEnum.IN_PROGRESS, progress)
+            logger.info(f"Progress updated to {progress}%")
+
+        self.update_processing_status(StatusEnum.COMPLETED, 100, end_time=datetime.datetime.utcnow())
+        logger.info("OCR processing completed successfully")
+
+    @staticmethod
+    def get_processor(project_id: int, db: Session) -> 'OCRProcessor':
+        """
+        Retrieves the processor for a given project ID.
+        In this example, we're creating a new instance for simplicity.
+        If you need to retrieve an existing processor, you would adjust this accordingly.
+        """
+        return OCRProcessor(project_id, db)
 
     def stop_processing(self):
         logger.info("Stopping the OCR process.")

@@ -98,6 +98,20 @@ export class BackendService {
     );
   }
 
+  downloadSuccessExcel(projectId: number): Observable<Blob> {
+    return this.http.get(
+      `${this.apiUrl}/projects/${projectId}/download_success_excel`,
+      { responseType: 'blob' }
+    );
+  }
+
+  downloadFailExcel(projectId: number): Observable<Blob> {
+    return this.http.get(
+      `${this.apiUrl}/projects/${projectId}/download_fail_excel`,
+      { responseType: 'blob' }
+    );
+  }
+
   // Get file tree
   getFileTree(projectId: number): Observable<any> {
     console.log(
