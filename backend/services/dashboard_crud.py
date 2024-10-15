@@ -4,6 +4,8 @@ import json
 import csv
 import zipfile
 import traceback
+from io import BytesIO
+import pandas as pd
 from fastapi import HTTPException, Response
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill
@@ -433,10 +435,10 @@ def delete_input_file_or_folder(db: Session, project_id: int, path: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete '{path}': {str(e)}")
 
-def generate_excel_for_project(db: Session, project_id: int, output_type: str = "success") -> str:
+def generate_excel_for_project(db: Session, project_id: int, output_type: str = "success") -> BytesIO:
     """
     Generates an Excel file for a specific project, marking cells red where data is missing and green
-    where address information is complete. Returns the path to the generated Excel file.
+    where address information is complete. Returns a BytesIO stream of the Excel file.
     """
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -452,45 +454,51 @@ def generate_excel_for_project(db: Session, project_id: int, output_type: str = 
     if not all_data:
         raise HTTPException(status_code=404, detail="No data available")
 
-    # Create an Excel workbook and sheet
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Project Data"
+    try:
+        # Create a DataFrame from the data
+        df = pd.DataFrame(all_data, columns=all_fields)
 
-    # Write headers
-    ws.append(all_fields)
+        # Use a BytesIO stream to hold the Excel data
+        output = BytesIO()
+        writer = pd.ExcelWriter(output, engine='xlsxwriter')
+        df.to_excel(writer, index=False, sheet_name='Project Data')
 
-    # Write data rows and apply formatting
-    RED_FILL = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
-    GREEN_FILL = PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
+        workbook = writer.book
+        worksheet = writer.sheets['Project Data']
 
-    for row_idx, row in enumerate(all_data, start=2):
-        for col_idx, field in enumerate(all_fields, start=1):
-            value = row.get(field, None)
-            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+        # Define formats
+        red_format = workbook.add_format({'bg_color': '#FF0000'})
+        green_format = workbook.add_format({'bg_color': '#00FF00'})
 
-            # Mark cells red if data is missing
-            if value is None or value == "":
-                cell.fill = RED_FILL
+        # Apply conditional formatting for missing data (red) and address fields (green)
+        for idx, col in enumerate(df.columns):
+            col_letter = get_column_letter(idx + 1)
+            col_range = f'{col_letter}2:{col_letter}{len(df)+1}'
 
-            # Mark cells green if the field is related to address and not missing
-            if "address" in field.lower() and value:
-                cell.fill = GREEN_FILL
+            # Conditional formatting for missing data
+            worksheet.conditional_format(col_range, {
+                'type': 'blanks',
+                'format': red_format
+            })
+            worksheet.conditional_format(col_range, {
+                'type': 'text',
+                'criteria': 'equal to',
+                'value': '""',
+                'format': red_format
+            })
 
-    # Adjust column sizes to fit the longest text in each column
-    for col_idx, col in enumerate(ws.columns, 1):
-        max_length = 0
-        for cell in col:
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(cell.value)
-            except:
-                pass
-        ws.column_dimensions[get_column_letter(col_idx)].width = max_length + 2
+            # Conditional formatting for address-related fields
+            if 'address' in col.lower():
+                worksheet.conditional_format(col_range, {
+                    'type': 'no_blanks',
+                    'format': green_format
+                })
 
-    # Save the workbook to a file
-    file_path = os.path.join(output_dir, f"{project.name}_{output_type}_output.xlsx")
-    wb.save(file_path)
+        writer.close()
+        output.seek(0)  # Reset the pointer to the beginning of the stream
 
-    # Return the path to the generated Excel file
-    return file_path
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to generate Excel file: {str(e)}")
+
+    return output

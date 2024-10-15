@@ -25,17 +25,23 @@ import asyncio
 # Load environment variables from .env
 load_dotenv()
 
-# Constants
+# Existing constants
 SUPPORTED_IMAGE_FORMATS = [".png", ".jpg", ".jpeg", ".tif", ".tiff"]
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_API_URL = os.getenv("OPENAI_API_URL", "https://api.openai.com/v1/chat/completions")
-MX_TOKENS = 10000
+MX_TOKENS = int(os.getenv("MX_TOKENS", 10000))
 VECTOR_STORE_INPUT_PATH = os.getenv("VECTOR_STORE_INPUT_PATH", "./tools/geodata/json")
 VECTOR_STORE_OUTPUT_PATH = os.getenv("VECTOR_STORE_OUTPUT_PATH", "./vector_store")
-MAX_TOKENS = 4096
-MAX_RETRIES = int(os.getenv("MAX_RETRIES", 5))  # Default to 5 retries
-INITIAL_BACKOFF = int(os.getenv("INITIAL_BACKOFF", 1))  # Default backoff starts at 1 second
-MAX_BACKOFF = int(os.getenv("MAX_BACKOFF", 32))  # Maximum backoff time in seconds
+MAX_TOKENS = int(os.getenv("MAX_TOKENS", 4096))
+MAX_RETRIES = int(os.getenv("MAX_RETRIES", 5))
+INITIAL_BACKOFF = int(os.getenv("INITIAL_BACKOFF", 1))
+MAX_BACKOFF = int(os.getenv("MAX_BACKOFF", 32))
+
+# New parameters for OpenAI API
+TEMPERATURE = float(os.getenv("TEMPERATURE", 0.7))
+TOP_P = float(os.getenv("TOP_P", 1.0))
+FREQUENCY_PENALTY = float(os.getenv("FREQUENCY_PENALTY", 0.0))
+PRESENCE_PENALTY = float(os.getenv("PRESENCE_PENALTY", 0.0))
 
 
 # Ensure VECTOR_STORE_INPUT_PATH is set
@@ -247,6 +253,10 @@ class OCRProcessor:
                 "model": "gpt-4o-mini",
                 "messages": messages,
                 "max_tokens": MX_TOKENS,
+                "temperature": TEMPERATURE,
+                "top_p": TOP_P,
+                "frequency_penalty": FREQUENCY_PENALTY,
+                "presence_penalty": PRESENCE_PENALTY,
             }
 
             retry_count = 0
@@ -285,6 +295,7 @@ class OCRProcessor:
 
             logger.error(f"Failed to process image {image_path} after {MAX_RETRIES} attempts.")
             return None
+
 
     async def process_images(self, resume: bool = False):
         images = self.list_image_files()

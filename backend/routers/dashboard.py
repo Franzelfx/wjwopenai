@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 import os
 from fastapi import Query
 from fastapi.responses import StreamingResponse
+from io import BytesIO
 
 router = APIRouter()
 
@@ -109,30 +110,40 @@ def delete_input_file_or_folder(
 ):
     return dashboard_crud.delete_input_file_or_folder(db=db, project_id=project_id, path=path)
 
-@router.get("/projects/{project_id}/download_success_excel", response_class=FileResponse)
-def download_success_excel_files(
+@router.get("/projects/{project_id}/download_success_excel")
+async def download_success_excel_files(
     project_id: int,
     db: Session = Depends(get_db)
 ):
     """
     Endpoint to download an Excel file with marked cells from the successful output files.
     """
-    # Generate the Excel file and get its path
-    excel_filepath = dashboard_crud.generate_excel_for_project(db=db, project_id=project_id, output_type="success")
+    # Generate the Excel file and get its stream
+    excel_stream = dashboard_crud.generate_excel_for_project(db=db, project_id=project_id, output_type="success")
 
-    # Return the file as a response
-    return FileResponse(excel_filepath, filename=os.path.basename(excel_filepath))
+    # Return the file as a streaming response
+    return StreamingResponse(
+        excel_stream,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={"Content-Disposition": f"attachment; filename={project_id}_success_output.xlsx"}
+    )
 
 
-@router.get("/projects/{project_id}/download_fail_excel", response_class=FileResponse)
-def download_fail_excel_files(
+
+@router.get("/projects/{project_id}/download_fail_excel")
+async def download_fail_excel_files(
     project_id: int,
     db: Session = Depends(get_db)
 ):
     """
     Endpoint to download an Excel file with marked cells from the failed output files.
-    Cells with missing data are marked red, and cells with valid address information are marked green.
     """
-    excel_filepath = dashboard_crud.generate_excel_for_project(db=db, project_id=project_id)
+    # Generate the Excel file and get its stream
+    excel_stream = dashboard_crud.generate_excel_for_project(db=db, project_id=project_id, output_type="fail")
 
-    return FileResponse(excel_filepath, filename=os.path.basename(excel_filepath))
+    # Return the file as a streaming response
+    return StreamingResponse(
+        excel_stream,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={"Content-Disposition": f"attachment; filename={project_id}_fail_output.xlsx"}
+    )
