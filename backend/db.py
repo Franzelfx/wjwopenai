@@ -1,19 +1,27 @@
+import os
+from dotenv import load_dotenv  # Import dotenv to load environment variables
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import os
 
-# Database URL (Example for SQLite, replace with your actual database URL)
+# Load environment variables from a .env file
+load_dotenv()
+
+# Fetch environment variables with fallback values
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+POOL_SIZE = int(os.getenv("POOL_SIZE", 20))  # Default to 20
+MAX_OVERFLOW = int(os.getenv("MAX_OVERFLOW", 40))  # Default to 40
+POOL_TIMEOUT = int(os.getenv("POOL_TIMEOUT", 30))  # Default to 30 seconds
+POOL_RECYCLE = int(os.getenv("POOL_RECYCLE", 1800))  # Default to 30 minutes
 
-# Create the database engine with significantly increased pool size and overflow limit
+# Create the database engine with increased pool size and overflow limit
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},  # Required for SQLite, remove if using other databases
-    pool_size=20,  # Increased pool size to 20
-    max_overflow=40,  # Increased overflow limit to 40
-    pool_timeout=30,  # Set timeout for acquiring a connection
-    pool_recycle=1800,  # Recycle connections every 30 minutes
+    connect_args={"check_same_thread": False} if "sqlite" in SQLALCHEMY_DATABASE_URL else {},
+    pool_size=POOL_SIZE,
+    max_overflow=MAX_OVERFLOW,
+    pool_timeout=POOL_TIMEOUT,
+    pool_recycle=POOL_RECYCLE,
 )
 
 # SessionLocal class, a factory for creating new Session objects
