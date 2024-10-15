@@ -16,6 +16,8 @@ import tiktoken
 import chromadb
 import uuid
 from chromadb.config import Settings
+import random
+import time
 
 # Load environment variables from .env
 load_dotenv()
@@ -28,6 +30,10 @@ MX_TOKENS = 10000
 VECTOR_STORE_INPUT_PATH = os.getenv("VECTOR_STORE_INPUT_PATH", "./tools/geodata/json")
 VECTOR_STORE_OUTPUT_PATH = os.getenv("VECTOR_STORE_OUTPUT_PATH", "./vector_store")
 MAX_TOKENS = 4096
+MAX_RETRIES = int(os.getenv("MAX_RETRIES", 5))  # Default to 5 retries
+INITIAL_BACKOFF = int(os.getenv("INITIAL_BACKOFF", 1))  # Default backoff starts at 1 second
+MAX_BACKOFF = int(os.getenv("MAX_BACKOFF", 32))  # Maximum backoff time in seconds
+
 
 # Ensure VECTOR_STORE_INPUT_PATH is set
 if not VECTOR_STORE_INPUT_PATH:
@@ -176,24 +182,39 @@ class OCRProcessor:
                     logger.info(f"Added chunk embeddings to project {self.project_id}'s Chroma vector store with ID {unique_id}.")
 
     def get_text_embedding(self, text: str) -> Optional[List[float]]:
-        """Get text embeddings using OpenAI API."""
+        """Get text embeddings using OpenAI API with retries and exponential backoff."""
         payload = {
             "model": "text-embedding-ada-002",
             "input": text,
         }
 
-        try:
-            response = requests.post("https://api.openai.com/v1/embeddings", headers=headers, json=payload)
-            if response.status_code == 200:
-                embedding = response.json().get("data", [])[0].get("embedding", [])
-                if embedding:
-                    return embedding
+        retry_count = 0
+        backoff = INITIAL_BACKOFF  # Initial backoff time
+
+        while retry_count < MAX_RETRIES:
+            try:
+                response = requests.post(OPENAI_API_URL, headers=headers, json=payload)
+                if response.status_code == 200:
+                    embedding = response.json().get("data", [])[0].get("embedding", [])
+                    if embedding:
+                        return embedding
+                    else:
+                        logger.error("Failed to extract embedding from response.")
                 else:
-                    logger.error("Failed to extract embedding from response.")
-            else:
-                logger.error(f"Failed to get text embedding: {response.text}")
-        except Exception as e:
-            logger.error(f"Error while getting text embedding: {str(e)}")
+                    logger.error(f"OpenAI API request failed: {response.status_code} - {response.text}")
+            except Exception as e:
+                logger.error(f"Error during API call: {str(e)}")
+
+            # If we reach here, the request failed. Apply exponential backoff
+            retry_count += 1
+            if retry_count < MAX_RETRIES:
+                sleep_time = min(backoff, MAX_BACKOFF)
+                logger.info(f"Retrying in {sleep_time} seconds (Attempt {retry_count}/{MAX_RETRIES})...")
+                time.sleep(sleep_time)
+                backoff *= 2  # Exponentially increase backoff
+                backoff += random.uniform(0, 1)  # Add jitter to avoid synchronization issues
+
+        logger.error(f"Failed to get embedding after {MAX_RETRIES} attempts.")
         return None
 
     def query_vector_store(self, query: str, n_results: int = 5):
@@ -206,6 +227,7 @@ class OCRProcessor:
 
 
     def call_openai_api(self, image_path: str, prompt_text: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Call the OpenAI API for image processing with retries and exponential backoff."""
         logger.debug(f"Calling OpenAI API for image {image_path}")
         with open(image_path, "rb") as image_file:
             base64_image = base64.b64encode(image_file.read()).decode('utf-8')
@@ -216,24 +238,43 @@ class OCRProcessor:
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
             ]}
         ]
-        
+
         payload = {
             "model": "gpt-4o-mini",
             "messages": messages,
             "max_tokens": MX_TOKENS,
         }
 
-        response = requests.post(OPENAI_API_URL, headers=headers, json=payload)
+        retry_count = 0
+        backoff = INITIAL_BACKOFF  # Initial backoff time
 
-        if response.status_code == 200:
+        while retry_count < MAX_RETRIES:
             try:
-                return response.json()
-            except json.JSONDecodeError as e:
-                logger.error(f"Error decoding JSON response: {str(e)}")
-                return None
-        else:
-            logger.error(f"OpenAI API request failed with status code {response.status_code}: {response.text}")
-            return None
+                response = requests.post(OPENAI_API_URL, headers=headers, json=payload)
+
+                if response.status_code == 200:
+                    try:
+                        return response.json()
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Error decoding JSON response: {str(e)}")
+                        return None
+                else:
+                    logger.error(f"OpenAI API request failed: {response.status_code} - {response.text}")
+
+            except Exception as e:
+                logger.error(f"Error during OpenAI API call for image {image_path}: {str(e)}")
+
+            # If the request fails, apply exponential backoff before retrying
+            retry_count += 1
+            if retry_count < MAX_RETRIES:
+                sleep_time = min(backoff, MAX_BACKOFF)
+                logger.info(f"Retrying in {sleep_time} seconds (Attempt {retry_count}/{MAX_RETRIES})...")
+                time.sleep(sleep_time)
+                backoff *= 2  # Exponentially increase the backoff
+                backoff += random.uniform(0, 1)  # Add jitter to the backoff time
+
+        logger.error(f"Failed to process image {image_path} after {MAX_RETRIES} attempts.")
+        return None
 
     def process_images(self, resume: bool = False):
         images = self.list_image_files()
