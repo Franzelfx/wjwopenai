@@ -187,7 +187,7 @@ export class ResultsComponent implements OnInit {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'success_output.csv';
+        a.download = `success_output_${this.projectId}.csv`; // Add projectId to the filename
         a.click();
         window.URL.revokeObjectURL(url);
       });
@@ -197,7 +197,7 @@ export class ResultsComponent implements OnInit {
     this.backendService
       .downloadSuccessExcel(this.projectId)
       .subscribe((blob) => {
-        saveAs(blob, 'success_output.xlsx');
+        saveAs(blob, `success_output_${this.projectId}.xlsx`); // Add projectId to the filename
       });
   }
 
@@ -208,7 +208,7 @@ export class ResultsComponent implements OnInit {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'fail_output.csv';
+        a.download = `fail_output_${this.projectId}.csv`; // Add projectId to the filename
         a.click();
         window.URL.revokeObjectURL(url);
       });
@@ -216,7 +216,7 @@ export class ResultsComponent implements OnInit {
 
   downloadFailExcel(): void {
     this.backendService.downloadFailExcel(this.projectId).subscribe((blob) => {
-      saveAs(blob, 'fail_output.xlsx');
+      saveAs(blob, `fail_output_${this.projectId}.xlsx`); // Add projectId to the filename
     });
   }
 }
