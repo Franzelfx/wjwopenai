@@ -18,6 +18,9 @@ import uuid
 from chromadb.config import Settings
 import random
 import time
+import aiohttp
+import asyncio
+
 
 # Load environment variables from .env
 load_dotenv()
@@ -46,6 +49,7 @@ headers = {
 }
 
 import chromadb
+
 
 class OCRProcessor:
     def __init__(self, project_id: int, db: Session):
@@ -225,58 +229,64 @@ class OCRProcessor:
             return results.get('documents', [])
         return []
 
-
-    def call_openai_api(self, image_path: str, prompt_text: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    async def call_openai_api(self, image_path: str, prompt_text: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Call the OpenAI API for image processing with retries and exponential backoff."""
         logger.debug(f"Calling OpenAI API for image {image_path}")
-        with open(image_path, "rb") as image_file:
-            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+        async with aiohttp.ClientSession() as session:
+            with open(image_path, "rb") as image_file:
+                base64_image = base64.b64encode(image_file.read()).decode('utf-8')
 
-        messages = [
-            {"role": "user", "content": [
-                {"type": "text", "text": prompt_text},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-            ]}
-        ]
+            messages = [
+                {"role": "user", "content": [
+                    {"type": "text", "text": prompt_text},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                ]}
+            ]
 
-        payload = {
-            "model": "gpt-4o-mini",
-            "messages": messages,
-            "max_tokens": MX_TOKENS,
-        }
+            payload = {
+                "model": "gpt-4o-mini",
+                "messages": messages,
+                "max_tokens": MX_TOKENS,
+            }
 
-        retry_count = 0
-        backoff = INITIAL_BACKOFF  # Initial backoff time
+            retry_count = 0
+            backoff = INITIAL_BACKOFF  # Initial backoff time
 
-        while retry_count < MAX_RETRIES:
-            try:
-                response = requests.post(OPENAI_API_URL, headers=headers, json=payload)
+            while retry_count < MAX_RETRIES:
+                # Check if stop flag is set before each retry
+                if self._stop_flag:
+                    logger.info("Processing has been stopped before making the API call.")
+                    return None
 
-                if response.status_code == 200:
-                    try:
-                        return response.json()
-                    except json.JSONDecodeError as e:
-                        logger.error(f"Error decoding JSON response: {str(e)}")
+                try:
+                    async with session.post(OPENAI_API_URL, headers=headers, json=payload) as response:
+                        if response.status == 200:
+                            return await response.json()
+                        else:
+                            logger.error(f"OpenAI API request failed: {response.status} - {await response.text()}")
+
+                except Exception as e:
+                    logger.error(f"Error during OpenAI API call for image {image_path}: {str(e)}")
+
+                # If the request fails, apply exponential backoff before retrying
+                retry_count += 1
+                if retry_count < MAX_RETRIES:
+                    sleep_time = min(backoff, MAX_BACKOFF)
+                    logger.info(f"Retrying in {sleep_time} seconds (Attempt {retry_count}/{MAX_RETRIES})...")
+
+                    # Check if stop flag is set before sleeping
+                    if self._stop_flag:
+                        logger.info("Processing has been stopped during the retry wait period.")
                         return None
-                else:
-                    logger.error(f"OpenAI API request failed: {response.status_code} - {response.text}")
 
-            except Exception as e:
-                logger.error(f"Error during OpenAI API call for image {image_path}: {str(e)}")
+                    await asyncio.sleep(sleep_time)
+                    backoff *= 2  # Exponentially increase the backoff
+                    backoff += random.uniform(0, 1)  # Add jitter to the backoff time
 
-            # If the request fails, apply exponential backoff before retrying
-            retry_count += 1
-            if retry_count < MAX_RETRIES:
-                sleep_time = min(backoff, MAX_BACKOFF)
-                logger.info(f"Retrying in {sleep_time} seconds (Attempt {retry_count}/{MAX_RETRIES})...")
-                time.sleep(sleep_time)
-                backoff *= 2  # Exponentially increase the backoff
-                backoff += random.uniform(0, 1)  # Add jitter to the backoff time
+            logger.error(f"Failed to process image {image_path} after {MAX_RETRIES} attempts.")
+            return None
 
-        logger.error(f"Failed to process image {image_path} after {MAX_RETRIES} attempts.")
-        return None
-
-    def process_images(self, resume: bool = False):
+    async def process_images(self, resume: bool = False):
         images = self.list_image_files()
         total_files = len(images)
         logger.info(f"Total images found for processing: {total_files}")
@@ -301,19 +311,24 @@ class OCRProcessor:
 
             image_path = images[index]
             logger.info(f"Processing image {index + 1}/{total_files}: {image_path}")
-            try:
-                response_json = self.call_openai_api(image_path, prompt_text)
-                if response_json:
-                    content = response_json.get("choices", [{}])[0].get("message", {}).get("content", "")
-                    if content:
-                        output_file = os.path.join(self.output_dir, f"{Path(image_path).stem}.json")
-                        with open(output_file, 'w', encoding='utf-8') as f:
-                            json.dump(content, f)
-                        logger.info(f"Successfully processed and saved JSON for image: {image_path}")
-                    else:
-                        logger.error(f"Invalid content for image: {image_path}")
-            except Exception as e:
-                logger.error(f"Failed to process image {image_path}: {str(e)}")
+
+            response_json = await self.call_openai_api(image_path, prompt_text)
+            if self._stop_flag:
+                logger.info("Processing has been stopped after the API call.")
+                self.current_index = index
+                progress = int((index / total_files) * 100)
+                self.update_processing_status(StatusEnum.PAUSED, progress, end_time=None)
+                return
+
+            if response_json:
+                content = response_json.get("choices", [{}])[0].get("message", {}).get("content", "")
+                if content:
+                    output_file = os.path.join(self.output_dir, f"{Path(image_path).stem}.json")
+                    with open(output_file, 'w', encoding='utf-8') as f:
+                        json.dump(content, f)
+                    logger.info(f"Successfully processed and saved JSON for image: {image_path}")
+                else:
+                    logger.error(f"Invalid content for image: {image_path}")
 
             progress = int(((index + 1) / total_files) * 100)
             self.update_processing_status(StatusEnum.IN_PROGRESS, progress)
@@ -335,7 +350,7 @@ class OCRProcessor:
         logger.info("Stopping the OCR process.")
         self._stop_flag = True
 
-    def resume_processing(self):
-        logger.info("Resuming the OCR process.")
-        self._stop_flag = False
-        self.process_images(resume=True)
+    def stop_processing(self):
+        logger.info("Stopping the OCR process.")
+        self._stop_flag = True
+

@@ -69,10 +69,9 @@ def get_status_by_project(project_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/start-ocr/{project_id}")
-def start_ocr_process(project_id: int, db: Session = Depends(get_db)):
+async def start_ocr_process(project_id: int, db: Session = Depends(get_db)):
     """
-    API Endpoint to start OCR process for a project and also query the vector store
-    to validate information (e.g., addresses).
+    API Endpoint to start the OCR process for a project and query the vector store to validate information like addresses.
     """
     logger.info(f"Starting OCR process for project {project_id}")
     try:
@@ -80,22 +79,22 @@ def start_ocr_process(project_id: int, db: Session = Depends(get_db)):
         ocr_processor = OCRProcessor(project_id, db)
         
         # Process all images for OCR
-        ocr_processor.process_images()
+        await ocr_processor.process_images()
         logger.info(f"OCR process completed successfully for project {project_id}")
         
-        # After OCR, query the vector store based on the extracted content
-        extracted_addresses = []  # List to store extracted addresses
+        # Post-processing: Extract addresses from the processed JSON files
+        extracted_addresses = []
 
-        # Traverse all JSON files in the output directory and find "Adresse" fields
+        # Traverse all JSON files in the output directory to find "Adresse" fields
         for json_file in os.listdir(ocr_processor.output_dir):
             if json_file.endswith(".json"):
                 with open(os.path.join(ocr_processor.output_dir, json_file), 'r') as f:
                     content = json.load(f)
-                    # Recursively find all addresses in the content
+                    # Find all addresses in the JSON content
                     addresses = find_addresses(content)
                     extracted_addresses.extend(addresses)
-        
-        # If there are extracted addresses, validate them with the vector store
+
+        # Query the vector store to validate extracted addresses
         validation_results = []
         for address in extracted_addresses:
             query_result = ocr_processor.query_vector_store(query=address, n_results=5)
