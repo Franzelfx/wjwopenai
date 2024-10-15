@@ -132,7 +132,6 @@ class OCRProcessor:
                 if Path(file).suffix.lower() in SUPPORTED_IMAGE_FORMATS:
                     full_path = os.path.join(root, file)
                     image_files.append(full_path)
-                    logger.info(f"Found image file: {full_path}")
         
         if not image_files:
             logger.warning("No image files found in input directory.")
@@ -296,7 +295,6 @@ class OCRProcessor:
             logger.error(f"Failed to process image {image_path} after {MAX_RETRIES} attempts.")
             return None
 
-
     async def process_images(self, resume: bool = False):
         images = self.list_image_files()
         total_files = len(images)
@@ -307,7 +305,13 @@ class OCRProcessor:
             logger.error("No images found for processing.")
             raise Exception("No images found for processing.")
 
-        # Prompt text is in file "backend/prompt.md"
+        # Define directories for success and fail outputs
+        success_dir = os.path.join(self.output_dir, "success")
+        fail_dir = os.path.join(self.output_dir, "fail")
+        os.makedirs(success_dir, exist_ok=True)
+        os.makedirs(fail_dir, exist_ok=True)
+
+        # Load the prompt text from the file
         prompt_text = ""
         with open("./prompt.md", "r") as f:
             prompt_text = f.read()
@@ -323,23 +327,59 @@ class OCRProcessor:
             image_path = images[index]
             logger.info(f"Processing image {index + 1}/{total_files}: {image_path}")
 
-            response_json = await self.call_openai_api(image_path, prompt_text)
-            if self._stop_flag:
-                logger.info("Processing has been stopped after the API call.")
-                self.current_index = index
-                progress = int((index / total_files) * 100)
-                self.update_processing_status(StatusEnum.PAUSED, progress, end_time=None)
-                return
+            try:
+                response_json = await self.call_openai_api(image_path, prompt_text)
+                if self._stop_flag:
+                    logger.info("Processing has been stopped after the API call.")
+                    self.current_index = index
+                    progress = int((index / total_files) * 100)
+                    self.update_processing_status(StatusEnum.PAUSED, progress, end_time=None)
+                    return
 
-            if response_json:
-                content = response_json.get("choices", [{}])[0].get("message", {}).get("content", "")
-                if content:
-                    output_file = os.path.join(self.output_dir, f"{Path(image_path).stem}.json")
-                    with open(output_file, 'w', encoding='utf-8') as f:
-                        json.dump(content, f)
-                    logger.info(f"Successfully processed and saved JSON for image: {image_path}")
+                if response_json:
+                    content = response_json.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    if content:
+                        # Ensure the content is a valid JSON format by parsing it first
+                        try:
+                            # Remove markdown-like syntax and extra formatting if present
+                            if content.startswith("```json"):
+                                content = content.replace("```json", "").replace("```", "").strip()
+                            
+                            # Try to load the content as JSON to ensure valid format
+                            json_content = json.loads(content)
+                            
+                            # Save the properly formatted JSON to the success directory
+                            output_file = os.path.join(success_dir, f"{Path(image_path).stem}.json")
+                            with open(output_file, 'w', encoding='utf-8') as f:
+                                json.dump(json_content, f, ensure_ascii=False, indent=4)
+                            
+                            logger.info(f"Successfully processed and saved JSON for image: {image_path}")
+                        
+                        except json.JSONDecodeError as e:
+                            # If JSON is invalid, treat it as a failed processing
+                            fail_file = os.path.join(fail_dir, f"{Path(image_path).stem}.json")
+                            with open(fail_file, 'w', encoding='utf-8') as f:
+                                json.dump({"error": "Invalid JSON format", "message": content}, f, ensure_ascii=False, indent=4)
+                            logger.error(f"Invalid JSON format for image: {image_path}. Saved to fail directory.")
+                    else:
+                        # If content is invalid, save the result to the fail directory
+                        fail_file = os.path.join(fail_dir, f"{Path(image_path).stem}.json")
+                        with open(fail_file, 'w', encoding='utf-8') as f:
+                            json.dump({"error": "Invalid content"}, f, ensure_ascii=False, indent=4)
+                        logger.error(f"Invalid content for image: {image_path}. Saved to fail directory.")
                 else:
-                    logger.error(f"Invalid content for image: {image_path}")
+                    # If no response, save the failure result
+                    fail_file = os.path.join(fail_dir, f"{Path(image_path).stem}.json")
+                    with open(fail_file, 'w', encoding='utf-8') as f:
+                        json.dump({"error": "No response from API"}, f, ensure_ascii=False, indent=4)
+                    logger.error(f"No response from API for image: {image_path}. Saved to fail directory.")
+
+            except Exception as e:
+                # Save the error to the fail directory in case of exception
+                fail_file = os.path.join(fail_dir, f"{Path(image_path).stem}.json")
+                with open(fail_file, 'w', encoding='utf-8') as f:
+                    json.dump({"error": str(e)}, f, ensure_ascii=False, indent=4)
+                logger.error(f"Failed to process image {image_path}: {str(e)}. Saved to fail directory.")
 
             progress = int(((index + 1) / total_files) * 100)
             self.update_processing_status(StatusEnum.IN_PROGRESS, progress)

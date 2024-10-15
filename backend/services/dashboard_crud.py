@@ -437,8 +437,9 @@ def delete_input_file_or_folder(db: Session, project_id: int, path: str):
 
 def generate_excel_for_project(db: Session, project_id: int, output_type: str = "success") -> BytesIO:
     """
-    Generates an Excel file for a specific project, marking cells red where data is missing and green
-    where address information is complete. Returns a BytesIO stream of the Excel file.
+    Generates an Excel file for a specific project, marking cells red where data is missing, 
+    green where address information is complete, and yellow for "unbekannt". 
+    Also adjusts column width based on the largest string in each column.
     """
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -469,8 +470,9 @@ def generate_excel_for_project(db: Session, project_id: int, output_type: str = 
         # Define formats
         red_format = workbook.add_format({'bg_color': '#FF0000'})
         green_format = workbook.add_format({'bg_color': '#00FF00'})
+        yellow_format = workbook.add_format({'bg_color': '#FFFF00'})
 
-        # Apply conditional formatting for missing data (red) and address fields (green)
+        # Apply conditional formatting for missing data (red), address fields (green), and "unbekannt" (yellow)
         for idx, col in enumerate(df.columns):
             col_letter = get_column_letter(idx + 1)
             col_range = f'{col_letter}2:{col_letter}{len(df)+1}'
@@ -487,12 +489,24 @@ def generate_excel_for_project(db: Session, project_id: int, output_type: str = 
                 'format': red_format
             })
 
+            # Conditional formatting for "unbekannt"
+            worksheet.conditional_format(col_range, {
+                'type': 'text',
+                'criteria': 'containing',
+                'value': 'unbekannt',
+                'format': yellow_format
+            })
+
             # Conditional formatting for address-related fields
             if 'address' in col.lower():
                 worksheet.conditional_format(col_range, {
                     'type': 'no_blanks',
                     'format': green_format
                 })
+
+            # Adjust column width based on the largest string in each column
+            max_length = max(df[col].astype(str).map(len).max(), len(col)) + 2
+            worksheet.set_column(f"{col_letter}:{col_letter}", max_length)
 
         writer.close()
         output.seek(0)  # Reset the pointer to the beginning of the stream
