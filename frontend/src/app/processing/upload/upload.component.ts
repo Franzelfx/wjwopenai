@@ -1,18 +1,24 @@
 // upload.component.ts
-import { Component, OnInit, Input } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  Input,
+  NgZone,
+} from '@angular/core';
 import { BackendService } from '../../services/backend.service';
 import { FlatTreeControl } from '@angular/cdk/tree';
 import {
   MatTreeFlatDataSource,
   MatTreeFlattener,
 } from '@angular/material/tree';
+import { Subscription } from 'rxjs';
 
 interface FileNode {
   name: string;
   type?: string;
   children?: FileNode[];
 }
-
 interface ExampleFlatNode {
   expandable: boolean;
   name: string;
@@ -24,7 +30,7 @@ interface ExampleFlatNode {
   templateUrl: './upload.component.html',
   styleUrls: ['./upload.component.css'],
 })
-export class UploadComponent implements OnInit {
+export class UploadComponent implements OnInit, OnDestroy {
   @Input() projectId = 0;
 
   // File‐tree state
@@ -33,41 +39,77 @@ export class UploadComponent implements OnInit {
   inputFiles: File[] = [];
   selectedItem: FileNode | null = null;
 
-  // OCR finite‐state‐machine
+  // OCR FSM: 'idle' | 'in_progress' | 'paused'
   ocrState: 'idle' | 'in_progress' | 'paused' = 'idle';
 
   // Prompt‐MD uploader
   promptFile: File | null = null;
   currentPromptName = '';
 
+  private sseSub?: Subscription;
+
   private _transformer = (node: FileNode, level: number) => ({
     expandable: !!node.children && node.children.length > 0,
     name: node.name,
     level,
   });
-
   treeControl = new FlatTreeControl<ExampleFlatNode>(
-    node => node.level,
-    node => node.expandable
+    n => n.level,
+    n => n.expandable
   );
   treeFlattener = new MatTreeFlattener(
     this._transformer,
-    node => node.level,
-    node => node.expandable,
-    node => node.children
+    n => n.level,
+    n => n.expandable,
+    n => n.children
   );
-  dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
+  dataSource = new MatTreeFlatDataSource(
+    this.treeControl,
+    this.treeFlattener
+  );
 
-  constructor(private backendService: BackendService) { }
+  constructor(
+    private backendService: BackendService,
+    private ngZone: NgZone
+  ) { }
 
   ngOnInit(): void {
     this.loadFileTree();
     this.loadCurrentPromptName();
+    this.subscribeToStatusSSE();
   }
 
-  // ----- File Tree & Upload Folder -----
-  onFolderSelected(event: any): void {
-    this.inputFiles = Array.from(event.target.files || []);
+  ngOnDestroy(): void {
+    this.sseSub?.unsubscribe();
+  }
+
+  // ─── SSE subscription ─────────────────────────────────────────
+  private subscribeToStatusSSE() {
+    this.sseSub = this.backendService
+      .getProcessingStatusSSE(this.projectId)
+      .subscribe((evt: MessageEvent) => {
+        let data: any;
+        try {
+          data = JSON.parse(evt.data);
+        } catch {
+          return;
+        }
+        const raw = (data.status || '').toString().trim().toLowerCase();
+        let state: 'idle' | 'in_progress' | 'paused' = 'idle';
+        if (raw === 'in progress' || raw === 'in_progress') {
+          state = 'in_progress';
+        } else if (raw === 'paused') {
+          state = 'paused';
+        } else {
+          state = 'idle';
+        }
+        this.ngZone.run(() => (this.ocrState = state));
+      });
+  }
+
+  // ─── File‐tree & folder upload / delete ───────────────────────
+  onFolderSelected(evt: any): void {
+    this.inputFiles = Array.from(evt.target.files || []);
     if (this.inputFiles.length) {
       this.selectedFolderName = this.inputFiles[0].webkitRelativePath.split('/')[0];
       this.folderTree = [{ name: this.selectedFolderName, children: [] }];
@@ -135,7 +177,7 @@ export class UploadComponent implements OnInit {
   hasChild = (_: number, node: ExampleFlatNode) => node.expandable;
   selectItem(node: FileNode): void { this.selectedItem = node; }
 
-  // ----- OCR Controls -----
+  // ─── OCR controls ─────────────────────────────────────────────
   togglePlayPause(): void {
     switch (this.ocrState) {
       case 'idle': return this.startOCR();
@@ -156,7 +198,7 @@ export class UploadComponent implements OnInit {
 
   private pauseOCR(): void {
     this.backendService.stopOCR(this.projectId).subscribe({
-      next: () => this.ocrState = 'paused',
+      next: () => (this.ocrState = 'paused'),
       error: () => alert('Failed to pause OCR'),
     });
   }
@@ -174,15 +216,15 @@ export class UploadComponent implements OnInit {
   stopOCR(): void {
     if (!confirm('Stop OCR completely?')) return;
     this.backendService.stopOCR(this.projectId).subscribe({
-      next: () => this.ocrState = 'idle',
+      next: () => (this.ocrState = 'idle'),
       error: () => alert('Failed to stop OCR'),
     });
   }
 
-  // ----- Prompt‐MD Upload -----
+  // ─── Prompt‐MD upload ─────────────────────────────────────────
   onPromptSelected(evt: any): void {
     const f: File = evt.target.files?.[0];
-    if (f && f.name.endsWith('.md')) {
+    if (f?.name.endsWith('.md')) {
       this.promptFile = f;
     } else {
       alert('Please select a .md file');
@@ -192,27 +234,24 @@ export class UploadComponent implements OnInit {
 
   uploadPrompt(): void {
     if (!this.promptFile) return;
-
-    this.backendService.uploadPromptMarkdown(this.projectId, this.promptFile)
+    this.backendService
+      .uploadPromptMarkdown(this.projectId, this.promptFile)
       .subscribe({
         next: (resp: any) => {
           this.currentPromptName = resp.filename || this.promptFile!.name;
           this.promptFile = null;
           alert('Prompt uploaded');
         },
-        error: () => alert('Failed to upload prompt')
+        error: () => alert('Failed to upload prompt'),
       });
   }
 
   private loadCurrentPromptName(): void {
-    this.backendService.getProject(this.projectId)
+    this.backendService
+      .getProject(this.projectId)
       .subscribe({
-        next: proj => {
-          this.currentPromptName = proj.prompt_md || '';
-        },
-        error: () => {
-          console.warn('Could not fetch project prompt name');
-        }
+        next: proj => (this.currentPromptName = proj.prompt_md || ''),
+        error: () => console.warn('Could not fetch prompt name'),
       });
   }
 }

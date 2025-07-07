@@ -73,28 +73,38 @@ def get_status_by_project(project_id: int, db: Session = Depends(get_db)):
 @router.post("/start-ocr/{project_id}", status_code=202)
 async def start_ocr_process(project_id: int):
     """
-    Launch OCR for the given project *as a background task*.
-    If a processor is already running, return 400.
+    Kick-off OCR in the background.
+    Returns 202 immediately while the real work happens in _run().
     """
     if OCRProcessor.get_processor(project_id):
-        raise HTTPException(
-            status_code=400,
-            detail="OCR already running for this project",
-        )
+        raise HTTPException(400, "OCR already running for this project")
 
-    async def _run(pid: int):
-        db_task = SessionLocal()              # new long-lived session
+    async def _run(pid: int) -> None:
+        """Background OCR runner (start)."""
+        db_task = SessionLocal()
+        proc: OCRProcessor | None = None
         try:
-            proc = OCRProcessor(pid, db_task) # ← uses pid to build prompt path
-            await proc.process_images()       # heavy lifting
-            logger.info(f"OCR finished for project {pid}")
+            proc = OCRProcessor(pid, db_task)           # registers itself
+            await proc.process_images()                 # may pause & return
         except Exception as exc:
             logger.exception(f"OCR failed for project {pid}: {exc}")
+            if proc is not None:
+                proc.update_processing_status(
+                    StatusEnum.FAILED,
+                    proc.processing_status.progress,
+                )
+                proc.close()
         finally:
-            proc.close()                      # unregister instance
-            db_task.close()                   # close session
+            # ⚠️ close the session **only** when job is DONE, not when paused
+            if proc is None or proc.processing_status.status in (
+                StatusEnum.COMPLETED,
+                StatusEnum.FAILED,
+            ):
+                db_task.close()
 
-    asyncio.create_task(_run(project_id))     # fire-and-forget
+        # ── schedule the coroutine *outside* its own body ─────────────
+        asyncio.create_task(_run(project_id))
+
     return {"status": "started", "project_id": project_id}
 
 
@@ -104,6 +114,7 @@ async def stop_ocr_process(project_id: int):
     Set the stop flag on the running processor.
     The processing coroutine checks this flag frequently and exits.
     """
+    print(f"Stop requested for project {project_id}")
     proc = OCRProcessor.get_processor(project_id)
     if not proc:
         raise HTTPException(
@@ -114,6 +125,31 @@ async def stop_ocr_process(project_id: int):
     logger.info(f"Stop requested for project {project_id}")
     proc.stop_processing()
     return {"status": "stopping", "message": "Stop signal sent"}
+
+# ─── add this ────────────────────────────────────────────
+@router.post("/resume-ocr/{project_id}", status_code=202)
+async def resume_ocr_process(project_id: int):
+    old_proc = OCRProcessor.get_processor(project_id)
+    if not old_proc or old_proc.processing_status.status != StatusEnum.PAUSED:
+        raise HTTPException(404, "No paused OCR to resume")
+
+    # new session & fresh processor
+    db_task = SessionLocal()
+    new_proc = OCRProcessor(project_id, db_task)
+    new_proc.current_index = old_proc.current_index  # continue where we left
+    old_proc.close()                                 # unregister old instance
+
+    async def _run_resume():
+        try:
+            await new_proc.process_images(resume=True)
+            logger.info(f"OCR resumed and completed for project {project_id}")
+        except Exception:
+            logger.exception(f"OCR resume failed for project {project_id}")
+        finally:
+            db_task.close()
+
+    asyncio.create_task(_run_resume())
+    return {"status": "resumed", "project_id": project_id}
 
 @router.post("/processing/generate-vector-store")
 def generate_vector_store_from_folder(project_id: int, db: Session = Depends(get_db)):

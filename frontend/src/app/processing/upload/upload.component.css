@@ -48,7 +48,6 @@
   margin-top: 20px;
 }
 
-/* Reuse existing styles for folder picker */
 .upload-label {
   padding: 12px;
   background: #fafafa;
@@ -64,7 +63,6 @@
   background: #f0f0f0;
 }
 
-/* Folder buttons */
 .upload-button,
 .delete-button {
   padding: 10px;
@@ -100,7 +98,7 @@
   cursor: not-allowed;
 }
 
-/* Prompt‐MD specific styling */
+/* Prompt‐MD specific */
 .md-upload-label {
   margin-top: 8px;
 }
