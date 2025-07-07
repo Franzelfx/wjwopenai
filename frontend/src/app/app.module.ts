@@ -11,7 +11,9 @@ import { FormsModule } from '@angular/forms';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ResultsModule } from './processing/results/results.module';
 // MAt Checkbox is not a module, it is a component
-
+import { MatTreeModule } from '@angular/material/tree';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 
 @NgModule({
   declarations: [AppComponent],
@@ -26,8 +28,11 @@ import { ResultsModule } from './processing/results/results.module';
     FormsModule,
     DashboardModule,
     ResultsModule,
+    MatTreeModule,
+    MatIconModule,
+    MatButtonModule,
   ],
   providers: [],
   bootstrap: [AppComponent],
 })
-export class AppModule {}
+export class AppModule { }

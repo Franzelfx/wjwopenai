@@ -16,6 +16,7 @@ import io
 import os
 from dotenv import load_dotenv
 from typing import List
+import asyncio
 
 # Load environment variables
 load_dotenv()
@@ -71,66 +72,45 @@ def get_status_by_project(project_id: int, db: Session = Depends(get_db)):
 @router.post("/start-ocr/{project_id}")
 async def start_ocr_process(project_id: int, db: Session = Depends(get_db)):
     """
-    API Endpoint to start the OCR process for a project and query the vector store to validate information like addresses.
+    Fire-and-forget start.  Returns immediately; the heavy work
+    runs in an asyncio task and can later be paused/stopped.
     """
-    logger.info(f"Starting OCR process for project {project_id}")
-    try:
-        # Initialize OCR Processor for the given project
-        ocr_processor = OCRProcessor(project_id, db)
-        
-        # Process all images for OCR
-        await ocr_processor.process_images()
-        logger.info(f"OCR process completed successfully for project {project_id}")
-        
-        # Post-processing: Extract addresses from the processed JSON files
-        extracted_addresses = []
+    if OCRProcessor.get_processor(project_id):
+        raise HTTPException(
+            status_code=400,
+            detail="OCR is already running or paused for this project",
+        )
 
-        # Traverse all JSON files in the output directory to find "Adresse" fields
-        for json_file in os.listdir(ocr_processor.output_dir):
-            if json_file.endswith(".json"):
-                with open(os.path.join(ocr_processor.output_dir, json_file), 'r') as f:
-                    content = json.load(f)
-                    # Find all addresses in the JSON content
-                    addresses = find_addresses(content)
-                    extracted_addresses.extend(addresses)
+    logger.info(f"Starting OCR for project {project_id}")
+    proc = OCRProcessor(project_id, db)
 
-        # Query the vector store to validate extracted addresses
-        validation_results = []
-        for address in extracted_addresses:
-            query_result = ocr_processor.query_vector_store(query=address, n_results=5)
-            validation_results.append({
-                "address": address,
-                "validation_results": query_result
-            })
-        
-        logger.info(f"Validation with vector store completed for project {project_id}")
-        
-        return {
-            "status": "success",
-            "message": "OCR process and vector store validation completed successfully",
-            "ocr_results": extracted_addresses,
-            "vector_store_validation": validation_results
-        }
-    
-    except Exception as e:
-        logger.error(f"OCR process failed for project {project_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"OCR process failed: {str(e)}")
+    async def _run():
+        try:
+            await proc.process_images()        # long-running loop
+        except Exception as e:
+            logger.error(f"OCR failed for {project_id}: {e}")
+        finally:
+            proc.close()                       # unregister instance
+
+    asyncio.create_task(_run())                # <── NO await
+    return {"status": "started", "message": "OCR task launched"}
 
 @router.post("/stop-ocr/{project_id}")
-def stop_ocr_process(project_id: int, db: Session = Depends(get_db)):
-    logger.info(f"Stopping OCR process for project {project_id}")
-    try:
-        # Retrieve the OCR processor instance
-        ocr_processor = OCRProcessor.get_processor(project_id, db)
-        
-        # Stop the processing
-        ocr_processor.stop_processing()
-        
-        return {"status": "success", "message": "OCR process stopped successfully"}
-    
-    except Exception as e:
-        logger.error(f"Failed to stop OCR process for project {project_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to stop OCR process: {str(e)}")
+async def stop_ocr_process(project_id: int):
+    """
+    Set the stop flag on the running processor.
+    The processing coroutine checks this flag frequently and exits.
+    """
+    proc = OCRProcessor.get_processor(project_id)
+    if not proc:
+        raise HTTPException(
+            status_code=404,
+            detail="No running or paused OCR process for this project",
+        )
+
+    logger.info(f"Stop requested for project {project_id}")
+    proc.stop_processing()
+    return {"status": "stopping", "message": "Stop signal sent"}
 
 @router.post("/processing/generate-vector-store")
 def generate_vector_store_from_folder(project_id: int, db: Session = Depends(get_db)):

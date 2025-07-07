@@ -1,50 +1,90 @@
+<!-- upload.component.html -->
 <div class="processing-container">
   <div class="sidebar">
     <h3>Folder Structure</h3>
     <div class="header-line"></div>
 
     <div class="file-tree-container">
-      <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" class="mat-tree">
+      <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
         <!-- Folder Node -->
         <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
-          <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
-            <mat-icon>{{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}</mat-icon>
+          <button mat-icon-button matTreeNodeToggle>
+            <mat-icon>
+              {{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}
+            </mat-icon>
           </button>
-          <span (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name" [class.file]="!node.expandable">
-            {{node.name}}
+          <span
+            (click)="selectItem(node)"
+            [class.selected]="selectedItem?.name === node.name"
+            [class.file]="!node.expandable"
+          >
+            {{ node.name }}
           </span>
         </mat-tree-node>
 
         <!-- File Node -->
         <mat-tree-node *matTreeNodeDef="let node; when: !hasChild" matTreeNodePadding>
-          <span class="file-node" (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name">
+          <span
+            class="file-node"
+            (click)="selectItem(node)"
+            [class.selected]="selectedItem?.name === node.name"
+          >
             <mat-icon class="file-icon">insert_drive_file</mat-icon>
-            {{node.name}}
+            {{ node.name }}
           </span>
         </mat-tree-node>
       </mat-tree>
     </div>
 
-    <!-- Upload Section -->
     <div class="upload-section">
-      <input type="file" id="folderUpload" webkitdirectory (change)="onFolderSelected($event)" />
-      <label for="folderUpload" class="upload-label">
-        <span>{{ selectedFolderName || 'Select Folder...' }}</span>
+      <!-- single folder-picker “button” -->
+      <label class="upload-label">
+        <input type="file"
+               webkitdirectory
+               (change)="onFolderSelected($event)"
+               hidden>
+        {{ selectedFolderName || 'Select Folder…' }}
       </label>
 
-      <button class="upload-button" (click)="uploadFolder()">Upload Folder</button>
-      <button class="delete-button" (click)="deleteSelectedItem()" [disabled]="!selectedItem">Delete</button>
+      <button class="upload-button"
+              (click)="uploadFolder()"
+              [disabled]="!inputFiles.length">
+        Upload Folder
+      </button>
 
-      <!-- New buttons to control OCR -->
-      <div class="ocr-control-buttons">
-        <button class="start-ocr-button" (click)="startOCR()">
-          <mat-icon>play_arrow</mat-icon> Start OCR
+      <button class="delete-button"
+              (click)="deleteSelectedItem()"
+              [disabled]="!selectedItem">
+        Delete
+      </button>
+
+      <!-- Recorder‐style OCR controls -->
+      <div class="ocr-controls">
+        <button
+          mat-icon-button
+          class="ocr-toggle"
+          (click)="togglePlayPause()"
+          [attr.aria-label]="
+            ocrState === 'in_progress'
+              ? 'Pause OCR'
+              : ocrState === 'paused'
+                ? 'Resume OCR'
+                : 'Start OCR'
+          "
+        >
+          <mat-icon>
+            {{ ocrState === 'in_progress' ? 'pause' : 'play_arrow' }}
+          </mat-icon>
         </button>
-        <button class="stop-ocr-button" (click)="stopOCR()">
-          <mat-icon>stop</mat-icon> Stop OCR
-        </button>
-        <button class="resume-ocr-button" (click)="resumeOCR()">
-          <mat-icon>replay</mat-icon> Resume OCR
+
+        <button
+          mat-icon-button
+          class="ocr-stop"
+          (click)="stopOCR()"
+          [disabled]="ocrState === 'idle'"
+          aria-label="Stop OCR"
+        >
+          <mat-icon>stop</mat-icon>
         </button>
       </div>
     </div>

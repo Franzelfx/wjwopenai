@@ -1,29 +1,24 @@
+/* upload.component.css */
+
 .processing-container {
   display: flex;
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
   justify-content: center;
-  align-items: center;
+  padding: 0;
 }
 
 .sidebar {
   width: 100%;
-  background-color: #fdfdfd;
+  max-width: 600px;
+  background: #fdfdfd;
+  border: 1px solid #ddd;
   border-radius: 15px;
   padding: 20px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid #ddd;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .header-line {
-  border-bottom: 2px solid black;
-  margin-bottom: 20px;
-  margin-top: -10px;
+  border-bottom: 2px solid #000;
+  margin: -10px 0 20px;
 }
 
 .file-tree-container {
@@ -36,16 +31,7 @@
   align-items: center;
 }
 
-.mat-tree-node button {
-  margin-right: 10px;
-}
-
-.mat-tree-node span {
-  font-size: 14px;
-  color: #333;
-}
-
-.mat-tree-node .file-node {
+.file-node {
   display: flex;
   align-items: center;
   padding-left: 20px;
@@ -53,7 +39,6 @@
 
 .file-icon {
   margin-right: 5px;
-  font-size: 16px;
   color: #666;
 }
 
@@ -61,65 +46,56 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  align-items: stretch;
-  margin-bottom: 20px;
+  margin-top: 20px;
 }
 
 .upload-label {
-  width: 100%;
   padding: 12px;
+  background: #fafafa;
   border: 1px solid #ccc;
   border-radius: 5px;
-  background-color: #fafafa;
-  cursor: pointer;
   text-align: center;
-  transition: background-color 0.3s ease;
-  max-width: 100px;
+  cursor: pointer;
+  max-width: 140px;
+  transition: background 0.3s;
 }
 
 .upload-label:hover {
-  background-color: #f0f0f0;
+  background: #f0f0f0;
 }
 
-.upload-section input[type="file"] {
-  display: none;
-}
-
-.upload-section button {
-  width: 100%;
+.upload-button,
+.delete-button {
   padding: 10px;
+  font-weight: bold;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  font-weight: bold;
-  font-size: 14px;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
-  display: block;
-  /* Ensure buttons stack vertically */
+  transition: box-shadow 0.3s;
 }
 
 .upload-button {
-  background-color: #4caf50;
+  background: #4caf50;
   color: #fff;
 }
 
-.upload-button:hover {
-  background-color: #43a047;
+.upload-button:hover:not(:disabled) {
   box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
 }
 
 .delete-button {
-  background-color: #f44336;
+  background: #f44336;
   color: #fff;
 }
 
 .delete-button:hover:not(:disabled) {
-  background-color: #e53935;
   box-shadow: 0 4px 10px rgba(244, 67, 54, 0.3);
 }
 
+.upload-button:disabled,
 .delete-button:disabled {
-  background-color: #ddd;
+  background: #ddd;
+  color: #888;
   cursor: not-allowed;
 }
 
@@ -128,66 +104,50 @@
   color: #f44336;
   padding: 2px 4px;
   border-radius: 3px;
-  background-color: #f9f9f9;
 }
 
-.file {
-  padding-left: 25px;
-  font-style: italic;
-  color: #666;
-}
-
-.ocr-control-buttons {
+/* Recorder‐style OCR controls */
+.ocr-controls {
+  margin-top: 16px;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
 }
 
-.ocr-control-buttons button {
-  width: 100%;
-  /* Make sure buttons take full width */
-  display: block;
-  /* Ensure buttons stack vertically */
+.ocr-controls .mat-icon-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: transform 0.15s ease, background 0.2s ease;
 }
 
-.start-ocr-button {
+.ocr-controls .mat-icon-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.ocr-toggle {
   background-color: #2196f3;
   color: #fff;
 }
 
-.start-ocr-button mat-icon {
-  margin-right: 8px;
-}
-
-.start-ocr-button:hover {
+.ocr-toggle:hover:not(:disabled) {
   background-color: #1976d2;
-  box-shadow: 0 4px 10px rgba(33, 150, 243, 0.3);
 }
 
-.stop-ocr-button {
+.ocr-stop {
   background-color: #f44336;
   color: #fff;
 }
 
-.stop-ocr-button mat-icon {
-  margin-right: 8px;
-}
-
-.stop-ocr-button:hover {
+.ocr-stop:hover:not(:disabled) {
   background-color: #d32f2f;
-  box-shadow: 0 4px 10px rgba(244, 67, 54, 0.3);
 }
 
-.resume-ocr-button {
-  background-color: #4caf50;
-  color: #fff;
-}
-
-.resume-ocr-button mat-icon {
-  margin-right: 8px;
-}
-
-.resume-ocr-button:hover {
-  background-color: #388e3c;
-  box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
+.ocr-controls .mat-icon-button:disabled {
+  background-color: #ddd !important;
+  color: #888 !important;
+  box-shadow: none;
+  cursor: not-allowed;
 }

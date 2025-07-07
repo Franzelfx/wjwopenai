@@ -15,7 +15,6 @@ from tqdm import tqdm
 import tiktoken
 import chromadb
 import uuid
-from chromadb.config import Settings
 import random
 import time
 import aiohttp
@@ -58,11 +57,14 @@ import chromadb
 
 
 class OCRProcessor:
+    _instances: dict[int, "OCRProcessor"] = {}
+    
     def __init__(self, project_id: int, db: Session):
         """
         Initialize the OCRProcessor with a project ID and database session.
         This uses a persistent Chroma client.
         """
+        OCRProcessor._instances[project_id] = self
         self.db = db
         self.project_id = project_id
         self.project = self._get_project(project_id)
@@ -389,19 +391,11 @@ class OCRProcessor:
         logger.info("OCR processing completed successfully")
 
     @staticmethod
-    def get_processor(project_id: int, db: Session) -> 'OCRProcessor':
-        """
-        Retrieves the processor for a given project ID.
-        In this example, we're creating a new instance for simplicity.
-        If you need to retrieve an existing processor, you would adjust this accordingly.
-        """
-        return OCRProcessor(project_id, db)
+    def get_processor(project_id: int) -> "OCRProcessor | None":
+        return OCRProcessor._instances.get(project_id)
+
+    def close(self):
+        OCRProcessor._instances.pop(self.project_id, None)
 
     def stop_processing(self):
-        logger.info("Stopping the OCR process.")
         self._stop_flag = True
-
-    def stop_processing(self):
-        logger.info("Stopping the OCR process.")
-        self._stop_flag = True
-

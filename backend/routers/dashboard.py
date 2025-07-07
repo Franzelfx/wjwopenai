@@ -147,3 +147,29 @@ async def download_fail_excel_files(
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         headers={"Content-Disposition": f"attachment; filename={project_id}_fail_output.xlsx"}
     )
+
+@router.post("/projects/{project_id}/prompt")
+def upload_prompt_markdown(
+    project_id: int,
+    md_file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    return dashboard_crud.upload_prompt_md(db=db, project_id=project_id, md_file=md_file)
+
+# ── Download ───────────────────────────────────────────────────
+@router.get("/projects/{project_id}/prompt", response_class=FileResponse)
+def download_prompt_markdown(
+    project_id: int,
+    db: Session = Depends(get_db),
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project is None or not project.prompt_md:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+
+    file_path = os.path.join(
+        "projects", project.directory_name, project.prompt_md
+    )
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Prompt file missing on disk")
+
+    return FileResponse(file_path, filename=project.prompt_md)

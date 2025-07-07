@@ -516,3 +516,35 @@ def generate_excel_for_project(db: Session, project_id: int, output_type: str = 
         raise HTTPException(status_code=500, detail=f"Failed to generate Excel file: {str(e)}")
 
     return output
+
+def upload_prompt_md(db: Session, project_id: int, md_file: UploadFile):
+    """
+    Save / replace a markdown prompt for the project.
+    The file is always stored as <project_dir>/prompt.md
+    """
+    if not md_file.filename.endswith(".md"):
+        raise HTTPException(status_code=400, detail="Only .md files allowed")
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project_root = os.path.join(PROJECTS_BASE_DIR, project.directory_name)
+    os.makedirs(project_root, exist_ok=True)
+
+    target_path = os.path.join(project_root, "prompt.md")
+
+    # remove previous prompt (if any)
+    if os.path.exists(target_path):
+        os.remove(target_path)
+
+    # copy the uploaded file
+    with open(target_path, "wb") as buffer:
+        shutil.copyfileobj(md_file.file, buffer)
+
+    # record filename in DB (always "prompt.md")
+    project.prompt_md = "prompt.md"
+    db.commit()
+    db.refresh(project)
+
+    return {"message": "Prompt markdown uploaded", "filename": project.prompt_md}

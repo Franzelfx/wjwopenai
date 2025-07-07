@@ -1,3 +1,4 @@
+// upload.component.ts
 import { Component, OnInit, Input } from '@angular/core';
 import { BackendService } from '../../services/backend.service';
 import { FlatTreeControl } from '@angular/cdk/tree';
@@ -24,107 +25,89 @@ interface ExampleFlatNode {
   styleUrls: ['./upload.component.css'],
 })
 export class UploadComponent implements OnInit {
-  @Input() projectId: number = 0;
+  @Input() projectId = 0;
+
+  // File‐tree state
   folderTree: FileNode[] = [];
-  selectedFolderName: string = '';
+  selectedFolderName = '';
   inputFiles: File[] = [];
   selectedItem: FileNode | null = null;
 
-  private _transformer = (node: FileNode, level: number) => {
-    return {
-      expandable: !!node.children && node.children.length > 0,
-      name: node.name,
-      level: level,
-    };
-  };
+  // OCR finite‐state‐machine
+  ocrState: 'idle' | 'in_progress' | 'paused' = 'idle';
+
+  private _transformer = (node: FileNode, level: number) => ({
+    expandable: !!node.children && node.children.length > 0,
+    name: node.name,
+    level,
+  });
 
   treeControl = new FlatTreeControl<ExampleFlatNode>(
-    (node) => node.level,
-    (node) => node.expandable
+    node => node.level,
+    node => node.expandable
   );
-
   treeFlattener = new MatTreeFlattener(
     this._transformer,
-    (node) => node.level,
-    (node) => node.expandable,
-    (node) => node.children
+    node => node.level,
+    node => node.expandable,
+    node => node.children
   );
-
   dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
 
-  constructor(private backendService: BackendService) {}
+  constructor(private backendService: BackendService) { }
 
   ngOnInit(): void {
-    console.log('UploadComponent initialized');
     this.loadFileTree();
   }
 
+  // ===== File‐tree & upload handlers =====
+
   onFolderSelected(event: any): void {
-    this.inputFiles = Array.from(event.target.files);
-
-    if (this.inputFiles.length > 0) {
-      const pathParts = this.inputFiles[0].webkitRelativePath.split('/');
-      this.selectedFolderName = pathParts[0];
-
-      const folderNode: FileNode = {
-        name: this.selectedFolderName,
-        children: [],
-      };
-      this.folderTree = [folderNode];
+    this.inputFiles = Array.from(event.target.files || []);
+    if (this.inputFiles.length) {
+      this.selectedFolderName = this.inputFiles[0].webkitRelativePath.split('/')[0];
+      this.folderTree = [{ name: this.selectedFolderName, children: [] }];
       this.dataSource.data = this.folderTree;
     }
-
-    console.log('Folder selected:', this.selectedFolderName);
   }
 
   uploadFolder(): void {
+    if (!this.inputFiles.length) return;
     const formData = new FormData();
-    this.inputFiles.forEach((file) =>
+    this.inputFiles.forEach(file =>
       formData.append('files', file, file.webkitRelativePath)
     );
-
-    console.log('Uploading folder for project ID:', this.projectId);
     this.backendService.uploadFolder(this.projectId, formData).subscribe(
       () => {
-        console.log('Folder uploaded successfully.');
         this.loadFileTree();
         this.selectedFolderName = '';
         this.inputFiles = [];
       },
-      (error) => {
-        console.error('Failed to upload folder:', error);
-      }
+      err => console.error('Upload error', err)
     );
   }
 
   loadFileTree(): void {
-    console.log('Loading file tree for project ID:', this.projectId);
     this.backendService.getFileTree(this.projectId).subscribe(
-      (fileTree) => {
+      fileTree => {
         this.folderTree = fileTree.input;
         this.dataSource.data = this.buildFileTree(this.folderTree, 0);
-        console.log('File tree loaded:', this.folderTree);
       },
-      (error) => {
-        console.error('Failed to load file tree:', error);
-      }
+      err => console.error('Load tree error', err)
     );
   }
 
-  buildFileTree(obj: { [key: string]: any }, level: number): FileNode[] {
-    return Object.keys(obj).reduce<FileNode[]>((accumulator, key) => {
+  buildFileTree(obj: any, level: number): FileNode[] {
+    return Object.keys(obj).reduce<FileNode[]>((acc, key) => {
       const value = obj[key];
       const node: FileNode = { name: key };
-
-      if (value != null && typeof value === 'object') {
+      if (value && typeof value === 'object') {
         node.children = this.buildFileTree(value, level + 1);
-        accumulator.push(node);
       } else {
         node.type = 'file';
-        accumulator.push(node);
       }
-
-      return accumulator;
+      acc.push(node);
+      return acc;
     }, []);
   }
 
@@ -132,88 +115,70 @@ export class UploadComponent implements OnInit {
 
   selectItem(node: FileNode): void {
     this.selectedItem = node;
-    console.log('Item selected for deletion:', node.name);
   }
 
   deleteSelectedItem(): void {
-    if (this.selectedItem) {
-      const isFolder =
-        this.selectedItem.children && this.selectedItem.children.length > 0;
-      const itemPath = this.selectedItem.name;
+    if (!this.selectedItem) return;
+    const path = this.selectedItem.name;
+    const isFolder = !!this.selectedItem.children?.length;
+    const svc = isFolder
+      ? this.backendService.deleteFolder(this.projectId, path)
+      : this.backendService.deleteFile(this.projectId, path);
 
-      if (isFolder) {
-        console.log('Deleting folder:', itemPath);
-        this.backendService.deleteFolder(this.projectId, itemPath).subscribe(
-          () => {
-            console.log('Folder deleted successfully.');
-            this.loadFileTree();
-            this.selectedItem = null;
-          },
-          (error) => {
-            console.error('Failed to delete folder:', error);
-          }
-        );
-      } else {
-        console.log('Deleting file:', itemPath);
-        this.backendService.deleteFile(this.projectId, itemPath).subscribe(
-          () => {
-            console.log('File deleted successfully.');
-            this.loadFileTree();
-            this.selectedItem = null;
-          },
-          (error) => {
-            console.error('Failed to delete file:', error);
-          }
-        );
-      }
+    svc.subscribe(
+      () => {
+        this.loadFileTree();
+        this.selectedItem = null;
+      },
+      err => console.error('Delete error', err)
+    );
+  }
+
+  // ===== OCR controls =====
+
+  togglePlayPause(): void {
+    switch (this.ocrState) {
+      case 'idle':
+        return this.startOCR();
+      case 'in_progress':
+        return this.pauseOCR();
+      case 'paused':
+        return this.resumeOCR();
     }
   }
 
-  startOCR(): void {
-    if (confirm('Are you sure you want to start the OCR process?')) {
-      console.log('Starting OCR process for project ID:', this.projectId);
-      this.backendService.startOCR(this.projectId).subscribe(
-        (response) => {
-          console.log('OCR process started successfully:', response);
-          alert('OCR process started successfully');
-        },
-        (error) => {
-          console.error('Failed to start OCR process:', error);
-          alert('Failed to start OCR process');
-        }
-      );
-    }
+  private startOCR(): void {
+    this.ocrState = 'in_progress';
+    this.backendService.startOCR(this.projectId).subscribe({
+      error: () => {
+        alert('Failed to start OCR');
+        this.ocrState = 'idle';
+      },
+    });
+  }
+
+  private pauseOCR(): void {
+    this.backendService.stopOCR(this.projectId).subscribe({
+      next: () => (this.ocrState = 'paused'),
+      error: () => alert('Failed to pause OCR'),
+    });
+  }
+
+  private resumeOCR(): void {
+    this.ocrState = 'in_progress';
+    this.backendService.resumeOCR(this.projectId).subscribe({
+      error: () => {
+        alert('Failed to resume OCR');
+        this.ocrState = 'paused';
+      },
+    });
   }
 
   stopOCR(): void {
-    if (confirm('Are you sure you want to stop the OCR process?')) {
-      console.log('Stopping OCR process for project ID:', this.projectId);
-      this.backendService.stopOCR(this.projectId).subscribe(
-        (response) => {
-          console.log('OCR process stopped successfully:', response);
-          alert('OCR process stopped successfully');
-        },
-        (error) => {
-          console.error('Failed to stop OCR process:', error);
-          alert('Failed to stop OCR process');
-        }
-      );
-    }
-  }
-
-  resumeOCR(): void {
-    if (confirm('Are you sure you want to resume the OCR process?')) {
-      console.log('Resuming OCR process for project ID:', this.projectId);
-      this.backendService.resumeOCR(this.projectId).subscribe(
-        (response) => {
-          console.log('OCR process resumed successfully:', response);
-          alert('OCR process resumed successfully');
-        },
-        (error) => {
-          console.error('Failed to resume OCR process:', error);
-          alert('Failed to resume OCR process');
-        }
-      );
-    }
+    if (!confirm('Stop OCR completely?')) return;
+    this.backendService.stopOCR(this.projectId).subscribe({
+      next: () => (this.ocrState = 'idle'),
+      error: () => alert('Failed to stop OCR'),
+    });
   }
 }

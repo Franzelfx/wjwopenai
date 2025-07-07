@@ -11,6 +11,7 @@ class Project(Base):
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     directory_name = Column(String, nullable=False)
+    prompt_md     = Column(String, nullable=True)
 
     processing_statuses = relationship(
         "ProcessingStatus",
