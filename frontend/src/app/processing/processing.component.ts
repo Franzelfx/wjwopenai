@@ -22,7 +22,7 @@ interface StatusData {
 export class ProcessingComponent implements OnInit, OnDestroy {
   projectId: number = 0;
   progress: number = 0;
-  status: string = 'PENDING';
+  status: string = 'pending';
   sseSubscription!: Subscription;
   selectedFile: { fileName: string; outputType: string } | null = null;
 
@@ -31,7 +31,7 @@ export class ProcessingComponent implements OnInit, OnDestroy {
     private backendService: BackendService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone // Inject NgZone
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     console.log('ProcessingComponent initialized');

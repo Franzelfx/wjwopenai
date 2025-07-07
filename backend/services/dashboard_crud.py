@@ -548,3 +548,9 @@ def upload_prompt_md(db: Session, project_id: int, md_file: UploadFile):
     db.refresh(project)
 
     return {"message": "Prompt markdown uploaded", "filename": project.prompt_md}
+
+def get_project_by_id(db: Session, project_id: int) -> Project:
+    proj = db.query(Project).filter(Project.id == project_id).first()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return proj

@@ -36,6 +36,10 @@ export class UploadComponent implements OnInit {
   // OCR finite‐state‐machine
   ocrState: 'idle' | 'in_progress' | 'paused' = 'idle';
 
+  // Prompt‐MD uploader
+  promptFile: File | null = null;
+  currentPromptName = '';
+
   private _transformer = (node: FileNode, level: number) => ({
     expandable: !!node.children && node.children.length > 0,
     name: node.name,
@@ -58,10 +62,10 @@ export class UploadComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadFileTree();
+    this.loadCurrentPromptName();
   }
 
-  // ===== File‐tree & upload handlers =====
-
+  // ----- File Tree & Upload Folder -----
   onFolderSelected(event: any): void {
     this.inputFiles = Array.from(event.target.files || []);
     if (this.inputFiles.length) {
@@ -84,6 +88,23 @@ export class UploadComponent implements OnInit {
         this.inputFiles = [];
       },
       err => console.error('Upload error', err)
+    );
+  }
+
+  deleteSelectedItem(): void {
+    if (!this.selectedItem) return;
+    const path = this.selectedItem.name;
+    const isFolder = !!this.selectedItem.children?.length;
+    const svc = isFolder
+      ? this.backendService.deleteFolder(this.projectId, path)
+      : this.backendService.deleteFile(this.projectId, path);
+
+    svc.subscribe(
+      () => {
+        this.loadFileTree();
+        this.selectedItem = null;
+      },
+      err => console.error('Delete error', err)
     );
   }
 
@@ -112,38 +133,14 @@ export class UploadComponent implements OnInit {
   }
 
   hasChild = (_: number, node: ExampleFlatNode) => node.expandable;
+  selectItem(node: FileNode): void { this.selectedItem = node; }
 
-  selectItem(node: FileNode): void {
-    this.selectedItem = node;
-  }
-
-  deleteSelectedItem(): void {
-    if (!this.selectedItem) return;
-    const path = this.selectedItem.name;
-    const isFolder = !!this.selectedItem.children?.length;
-    const svc = isFolder
-      ? this.backendService.deleteFolder(this.projectId, path)
-      : this.backendService.deleteFile(this.projectId, path);
-
-    svc.subscribe(
-      () => {
-        this.loadFileTree();
-        this.selectedItem = null;
-      },
-      err => console.error('Delete error', err)
-    );
-  }
-
-  // ===== OCR controls =====
-
+  // ----- OCR Controls -----
   togglePlayPause(): void {
     switch (this.ocrState) {
-      case 'idle':
-        return this.startOCR();
-      case 'in_progress':
-        return this.pauseOCR();
-      case 'paused':
-        return this.resumeOCR();
+      case 'idle': return this.startOCR();
+      case 'in_progress': return this.pauseOCR();
+      case 'paused': return this.resumeOCR();
     }
   }
 
@@ -159,7 +156,7 @@ export class UploadComponent implements OnInit {
 
   private pauseOCR(): void {
     this.backendService.stopOCR(this.projectId).subscribe({
-      next: () => (this.ocrState = 'paused'),
+      next: () => this.ocrState = 'paused',
       error: () => alert('Failed to pause OCR'),
     });
   }
@@ -177,8 +174,45 @@ export class UploadComponent implements OnInit {
   stopOCR(): void {
     if (!confirm('Stop OCR completely?')) return;
     this.backendService.stopOCR(this.projectId).subscribe({
-      next: () => (this.ocrState = 'idle'),
+      next: () => this.ocrState = 'idle',
       error: () => alert('Failed to stop OCR'),
     });
+  }
+
+  // ----- Prompt‐MD Upload -----
+  onPromptSelected(evt: any): void {
+    const f: File = evt.target.files?.[0];
+    if (f && f.name.endsWith('.md')) {
+      this.promptFile = f;
+    } else {
+      alert('Please select a .md file');
+      evt.target.value = '';
+    }
+  }
+
+  uploadPrompt(): void {
+    if (!this.promptFile) return;
+
+    this.backendService.uploadPromptMarkdown(this.projectId, this.promptFile)
+      .subscribe({
+        next: (resp: any) => {
+          this.currentPromptName = resp.filename || this.promptFile!.name;
+          this.promptFile = null;
+          alert('Prompt uploaded');
+        },
+        error: () => alert('Failed to upload prompt')
+      });
+  }
+
+  private loadCurrentPromptName(): void {
+    this.backendService.getProject(this.projectId)
+      .subscribe({
+        next: proj => {
+          this.currentPromptName = proj.prompt_md || '';
+        },
+        error: () => {
+          console.warn('Could not fetch project prompt name');
+        }
+      });
   }
 }

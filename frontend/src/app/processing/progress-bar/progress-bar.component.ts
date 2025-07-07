@@ -1,3 +1,4 @@
+// progress-bar.component.ts
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 
 @Component({
@@ -9,33 +10,40 @@ export class ProgressBarComponent implements OnChanges {
   @Input() progress: number = 0;
   @Input() status: string = 'PENDING';
 
-  statusClass: string = 'pending'; // Initialize with a default class
+  statusClass: string = 'pending';
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['progress'] || changes['status']) {
       this.updateStatusClass();
-      console.log(`Progress: ${this.progress}, Status: ${this.status}`); // Combined log
+      console.log(`Progress: ${this.progress}, Status: ${this.status}`);
     }
   }
 
-  // Update status class based on the current status
-  updateStatusClass(): void {
-    switch (this.status) {
-      case 'PENDING':
+  private updateStatusClass(): void {
+    // normalize: trim, lowercase, convert spaces/underscores to hyphens
+    const key = this.status
+      .trim()
+      .toLowerCase()
+      .replace(/[_\s]+/g, '-'); // e.g. "IN_PROGRESS" -> "in-progress"
+
+    switch (key) {
+      case 'pending':
         this.statusClass = 'pending';
         break;
-      case 'IN_PROGRESS':
+      case 'in-progress':
         this.statusClass = 'in-progress';
         break;
-      case 'COMPLETED':
+      case 'paused':
+        this.statusClass = 'paused';
+        break;
+      case 'completed':
         this.statusClass = 'completed';
         break;
-      case 'FAILED':
+      case 'failed':
         this.statusClass = 'failed';
         break;
       default:
         this.statusClass = '';
-        break;
     }
   }
 }

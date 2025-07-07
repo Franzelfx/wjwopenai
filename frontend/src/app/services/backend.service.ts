@@ -2,7 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-
+export interface Project {
+  id: number;
+  name: string;
+  description?: string;
+  directory_name: string;
+  prompt_md?: string;
+}
 @Injectable({
   providedIn: 'root',
 })
@@ -275,4 +281,18 @@ export class BackendService {
       { responseType: 'blob' }
     );
   }
+
+  uploadPromptMarkdown(projectId: number, file: File) {
+    const formData = new FormData();
+    formData.append('md_file', file, file.name);
+    return this.http.post<{ filename: string }>(
+      `${this.apiUrl}/projects/${projectId}/prompt`,
+      formData
+    );
+  }
+
+  getProject(projectId: number): Observable<Project> {
+    return this.http.get<Project>(`${this.apiUrl}/projects/${projectId}`);
+  }
+
 }

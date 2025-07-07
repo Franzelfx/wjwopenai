@@ -13,22 +13,17 @@
               {{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}
             </mat-icon>
           </button>
-          <span
-            (click)="selectItem(node)"
-            [class.selected]="selectedItem?.name === node.name"
-            [class.file]="!node.expandable"
-          >
+          <span (click)="selectItem(node)"
+                [class.selected]="selectedItem?.name===node.name"
+                [class.file]="!node.expandable">
             {{ node.name }}
           </span>
         </mat-tree-node>
 
         <!-- File Node -->
         <mat-tree-node *matTreeNodeDef="let node; when: !hasChild" matTreeNodePadding>
-          <span
-            class="file-node"
-            (click)="selectItem(node)"
-            [class.selected]="selectedItem?.name === node.name"
-          >
+          <span class="file-node" (click)="selectItem(node)"
+                [class.selected]="selectedItem?.name===node.name">
             <mat-icon class="file-icon">insert_drive_file</mat-icon>
             {{ node.name }}
           </span>
@@ -37,53 +32,51 @@
     </div>
 
     <div class="upload-section">
-      <!-- single folder-picker “button” -->
+      <!-- Folder Picker -->
       <label class="upload-label">
-        <input type="file"
-               webkitdirectory
-               (change)="onFolderSelected($event)"
-               hidden>
+        <input type="file" webkitdirectory (change)="onFolderSelected($event)" hidden>
         {{ selectedFolderName || 'Select Folder…' }}
       </label>
-
-      <button class="upload-button"
-              (click)="uploadFolder()"
-              [disabled]="!inputFiles.length">
+      <button class="upload-button" (click)="uploadFolder()" [disabled]="!inputFiles.length">
         Upload Folder
       </button>
-
-      <button class="delete-button"
-              (click)="deleteSelectedItem()"
-              [disabled]="!selectedItem">
+      <button class="delete-button" (click)="deleteSelectedItem()" [disabled]="!selectedItem">
         Delete
       </button>
 
+      <!-- Prompt‐MD Picker -->
+      <label class="upload-label md-upload-label">
+        <input type="file" accept=".md" (change)="onPromptSelected($event)" hidden>
+        {{ promptFile?.name || 'Select Prompt (.md)…' }}
+      </label>
+      <button class="upload-button md-upload-button"
+              (click)="uploadPrompt()"
+              [disabled]="!promptFile">
+        Upload Prompt
+      </button>
+      <p class="md-file-name" *ngIf="currentPromptName">
+        Current prompt: {{ currentPromptName }}
+      </p>
+
       <!-- Recorder‐style OCR controls -->
       <div class="ocr-controls">
-        <button
-          mat-icon-button
-          class="ocr-toggle"
-          (click)="togglePlayPause()"
-          [attr.aria-label]="
-            ocrState === 'in_progress'
-              ? 'Pause OCR'
-              : ocrState === 'paused'
-                ? 'Resume OCR'
-                : 'Start OCR'
-          "
-        >
+        <button mat-icon-button class="ocr-toggle"
+                (click)="togglePlayPause()"
+                [attr.aria-label]="
+                  ocrState==='in_progress'
+                    ? 'Pause OCR'
+                    : ocrState==='paused'
+                      ? 'Resume OCR'
+                      : 'Start OCR'
+                ">
           <mat-icon>
-            {{ ocrState === 'in_progress' ? 'pause' : 'play_arrow' }}
+            {{ ocrState==='in_progress' ? 'pause' : 'play_arrow' }}
           </mat-icon>
         </button>
-
-        <button
-          mat-icon-button
-          class="ocr-stop"
-          (click)="stopOCR()"
-          [disabled]="ocrState === 'idle'"
-          aria-label="Stop OCR"
-        >
+        <button mat-icon-button class="ocr-stop"
+                (click)="stopOCR()"
+                [disabled]="ocrState==='idle'"
+                aria-label="Stop OCR">
           <mat-icon>stop</mat-icon>
         </button>
       </div>

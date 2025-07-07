@@ -9,6 +9,7 @@ import os
 from fastapi import Query
 from fastapi.responses import StreamingResponse
 from io import BytesIO
+from schemas.dashboard import Project as ProjectSchema
 
 router = APIRouter()
 
@@ -173,3 +174,7 @@ def download_prompt_markdown(
         raise HTTPException(status_code=404, detail="Prompt file missing on disk")
 
     return FileResponse(file_path, filename=project.prompt_md)
+
+@router.get("/projects/{project_id}", response_model=ProjectSchema)
+def read_project(project_id: int, db: Session = Depends(get_db)):
+    return dashboard_crud.get_project_by_id(db, project_id)

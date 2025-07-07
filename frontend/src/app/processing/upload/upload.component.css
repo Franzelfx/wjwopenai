@@ -1,5 +1,4 @@
 /* upload.component.css */
-
 .processing-container {
   display: flex;
   justify-content: center;
@@ -49,6 +48,7 @@
   margin-top: 20px;
 }
 
+/* Reuse existing styles for folder picker */
 .upload-label {
   padding: 12px;
   background: #fafafa;
@@ -56,7 +56,7 @@
   border-radius: 5px;
   text-align: center;
   cursor: pointer;
-  max-width: 140px;
+  max-width: 180px;
   transition: background 0.3s;
 }
 
@@ -64,6 +64,7 @@
   background: #f0f0f0;
 }
 
+/* Folder buttons */
 .upload-button,
 .delete-button {
   padding: 10px;
@@ -99,11 +100,28 @@
   cursor: not-allowed;
 }
 
-.selected {
-  font-weight: bold;
-  color: #f44336;
-  padding: 2px 4px;
-  border-radius: 3px;
+/* Prompt‐MD specific styling */
+.md-upload-label {
+  margin-top: 8px;
+}
+
+.md-upload-button {
+  background: #607d8b;
+  color: #fff;
+}
+
+.md-upload-button:hover:not(:disabled) {
+  box-shadow: 0 4px 10px rgba(96, 125, 139, 0.3);
+}
+
+.md-upload-button:disabled {
+  background: #ddd;
+  cursor: not-allowed;
+}
+
+.md-file-name {
+  font-size: 13px;
+  color: #555;
 }
 
 /* Recorder‐style OCR controls */

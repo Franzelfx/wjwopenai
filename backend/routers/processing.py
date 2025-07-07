@@ -17,6 +17,7 @@ import os
 from dotenv import load_dotenv
 from typing import List
 import asyncio
+from db import SessionLocal
 
 # Load environment variables
 load_dotenv()
@@ -69,31 +70,33 @@ def get_status_by_project(project_id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/start-ocr/{project_id}")
-async def start_ocr_process(project_id: int, db: Session = Depends(get_db)):
+@router.post("/start-ocr/{project_id}", status_code=202)
+async def start_ocr_process(project_id: int):
     """
-    Fire-and-forget start.  Returns immediately; the heavy work
-    runs in an asyncio task and can later be paused/stopped.
+    Launch OCR for the given project *as a background task*.
+    If a processor is already running, return 400.
     """
     if OCRProcessor.get_processor(project_id):
         raise HTTPException(
             status_code=400,
-            detail="OCR is already running or paused for this project",
+            detail="OCR already running for this project",
         )
 
-    logger.info(f"Starting OCR for project {project_id}")
-    proc = OCRProcessor(project_id, db)
-
-    async def _run():
+    async def _run(pid: int):
+        db_task = SessionLocal()              # new long-lived session
         try:
-            await proc.process_images()        # long-running loop
-        except Exception as e:
-            logger.error(f"OCR failed for {project_id}: {e}")
+            proc = OCRProcessor(pid, db_task) # ← uses pid to build prompt path
+            await proc.process_images()       # heavy lifting
+            logger.info(f"OCR finished for project {pid}")
+        except Exception as exc:
+            logger.exception(f"OCR failed for project {pid}: {exc}")
         finally:
-            proc.close()                       # unregister instance
+            proc.close()                      # unregister instance
+            db_task.close()                   # close session
 
-    asyncio.create_task(_run())                # <── NO await
-    return {"status": "started", "message": "OCR task launched"}
+    asyncio.create_task(_run(project_id))     # fire-and-forget
+    return {"status": "started", "project_id": project_id}
+
 
 @router.post("/stop-ocr/{project_id}")
 async def stop_ocr_process(project_id: int):

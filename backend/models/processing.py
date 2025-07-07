@@ -5,11 +5,12 @@ import datetime
 from db import Base
 from models.dashboard import Project
 
-class StatusEnum(enum.Enum):
-    PENDING = "PENDING"
-    IN_PROGRESS = "IN_PROGRESS"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
+class StatusEnum(str, enum.Enum):
+    PENDING     = "pending"
+    IN_PROGRESS = "in progress"
+    PAUSED      = "paused"
+    COMPLETED   = "completed"
+    FAILED      = "failed"
 
 class ProcessingStatus(Base):
     __tablename__ = "processing_statuses"

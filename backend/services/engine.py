@@ -62,40 +62,48 @@ class OCRProcessor:
     def __init__(self, project_id: int, db: Session):
         """
         Initialize the OCRProcessor with a project ID and database session.
-        This uses a persistent Chroma client.
+        This uses a persistent Chroma client and remembers the project-specific
+        prompt markdown path.
         """
         OCRProcessor._instances[project_id] = self
         self.db = db
         self.project_id = project_id
+
+        # load project info and file-tree roots
         self.project = self._get_project(project_id)
-        self.input_dir = f"projects/{self.project.directory_name}/input"
-        self.output_dir = f"projects/{self.project.directory_name}/output"
+        self.input_dir  = os.path.join("projects", self.project.directory_name, "input")
+        self.output_dir = os.path.join("projects", self.project.directory_name, "output")
         self.processing_status = self._get_processing_status(project_id)
-        self._stop_flag = False
-        self.current_index = 0  # Track the current index for resuming
 
-        # Initialize Chroma persistent client
-        self.client = chromadb.PersistentClient(path=VECTOR_STORE_OUTPUT_PATH)  # Use the environment variable for persistence path
+        # track interruption and resume index
+        self._stop_flag    = False
+        self.current_index = 0
 
+        # ▶── NEW: path to the project's prompt markdown
+        #    stored in Project.prompt_md (filename) or defaults to "prompt.md"
+        self.prompt_path = os.path.join(
+            "projects",
+            self.project.directory_name,
+            self.project.prompt_md or "prompt.md"
+        )
+
+        # initialize ChromaDB client & collection
+        self.client = chromadb.PersistentClient(path=VECTOR_STORE_OUTPUT_PATH)
         self.collection_name = f"project_{self.project_id}_embeddings"
-
         try:
-            # Try to get the collection, if it doesn't exist, create it
-            collections = self.client.list_collections()
-            collection_names = [col.name for col in collections]
-
-            if self.collection_name in collection_names:
+            existing = [c.name for c in self.client.list_collections()]
+            if self.collection_name in existing:
                 self.collection = self.client.get_collection(self.collection_name)
-                logger.info(f"Found existing ChromaDB collection: {self.collection_name}")
+                logger.info(f"Found ChromaDB collection: {self.collection_name}")
             else:
                 self.collection = self.client.create_collection(self.collection_name)
-                logger.info(f"Created new ChromaDB collection: {self.collection_name}")
-        
+                logger.info(f"Created ChromaDB collection: {self.collection_name}")
         except Exception as e:
-            logger.error(f"Failed to initialize ChromaDB collection for project {self.project_id}: {str(e)}")
-            raise Exception(f"Failed to initialize ChromaDB collection for project {self.project_id}")
+            logger.error(f"ChromaDB init failed for project {project_id}: {e}")
+            raise
 
         logger.info(f"OCRProcessor initialized for project {self.project.directory_name}")
+
 
 
     def _get_project(self, project_id: int) -> Project:
@@ -300,23 +308,26 @@ class OCRProcessor:
     async def process_images(self, resume: bool = False):
         images = self.list_image_files()
         total_files = len(images)
-        logger.info(f"Total images found for processing: {total_files}")
-        
+        logger.info(f"Total images for project {self.project_id}: {total_files}")
+
         if total_files == 0:
             self.update_processing_status(StatusEnum.FAILED, 100, end_time=datetime.datetime.utcnow())
-            logger.error("No images found for processing.")
             raise Exception("No images found for processing.")
 
-        # Define directories for success and fail outputs
+        # prepare output directories
         success_dir = os.path.join(self.output_dir, "success")
-        fail_dir = os.path.join(self.output_dir, "fail")
+        fail_dir    = os.path.join(self.output_dir, "fail")
         os.makedirs(success_dir, exist_ok=True)
-        os.makedirs(fail_dir, exist_ok=True)
+        os.makedirs(fail_dir,    exist_ok=True)
 
-        # Load the prompt text from the file
-        prompt_text = ""
-        with open("./prompt.md", "r") as f:
-            prompt_text = f.read()
+        # ▶── load the project-specific prompt
+        if os.path.isfile(self.prompt_path):
+            with open(self.prompt_path, "r", encoding="utf-8") as f:
+                prompt_text = f.read()
+            logger.info(f"Loaded prompt from {self.prompt_path}")
+        else:
+            prompt_text = ""
+            logger.warning(f"No prompt at {self.prompt_path}; using empty prompt.")
 
         for index in range(self.current_index, total_files):
             if self._stop_flag:
