@@ -1,136 +1,81 @@
-.processing-container {
-  flex-direction: row;
-  height: calc(100vh - 20px);
-  /* Full height minus the progress bar height */
-  box-sizing: border-box;
-  gap: 10px;
-  /* Slightly increased gap between components */
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
-}
-
+/* container fills the available flex-column slot from parent */
 .json-editor-container {
-  width: 100%;
-  /* Keep in sync with parent width */
-  height: 95vh;
-  /* Set a higher default height for the edit window */
-  background-color: #ffffff;
-  border-radius: 15px;
-  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  overflow: auto;
-  /* Allows scrolling if content overflows */
-}
-
-#json-editor {
-  width: 100%;
-  height: calc(100% - 50px);
-  /* Adjust height to occupy most of the container */
-  font-family: monospace;
-  line-height: 1.4;
+  gap: 10px;
+  height: 95vh;
+  background: #fff;
+  border-radius: 12px;
   padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  resize: vertical;
-  white-space: pre;
-  overflow-wrap: break-word;
-  overflow-y: auto;
-  outline: none;
   box-sizing: border-box;
+  overflow: auto;
 }
 
-.button-container {
-  display: flex;
-  justify-content: flex-start;
-  margin-top: 10px;
-}
-
-button {
-  padding: 10px 20px;
-  font-size: 14px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  background-color: #4caf50;
-  color: #fff;
-  transition: background-color 0.3s ease;
-}
-
-button:hover {
-  background-color: #388e3c;
-}
-
-button:disabled {
-  background-color: #ddd;
-  cursor: not-allowed;
-}
-
-.error-message {
-  color: red;
-  font-size: 14px;
-  margin-top: 10px;
-}
-
+/* image preview */
 .image-container {
-  margin-bottom: 10px;
   text-align: center;
 }
 
 .image-preview {
   max-width: 100%;
-  max-height: 800px;
+  max-height: 400px;
   border: 1px solid #ddd;
-  border-radius: 5px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  object-fit: contain;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
+/* monospace editor */
 #json-editor {
+  flex: 1 1 auto;
   width: 100%;
-  height: calc(100% - 50px);
-  /* Adjust height to occupy most of the container */
-  font-family: monospace;
-  line-height: 1.4;
+  min-height: 250px;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.45;
   padding: 10px;
   border: 1px solid #ccc;
-  border-radius: 5px;
-  resize: vertical;
+  border-radius: 6px;
   white-space: pre;
-  overflow-wrap: break-word;
-  overflow-y: auto;
-  outline: none;
+  resize: vertical;
+  overflow: auto;
   box-sizing: border-box;
 }
 
-.button-container {
+/* buttons & validation */
+.button-row {
   display: flex;
-  justify-content: flex-start;
-  margin-top: 10px;
+  align-items: center;
+  gap: 12px;
 }
 
 button {
-  padding: 10px 20px;
+  padding: 8px 18px;
   font-size: 14px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  background-color: #4caf50;
   color: #fff;
-  transition: background-color 0.3s ease;
+  background: #4caf50;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.25s ease;
 }
 
 button:hover {
-  background-color: #388e3c;
+  background: #388e3c;
 }
 
 button:disabled {
-  background-color: #ddd;
+  background: #bbb;
   cursor: not-allowed;
 }
 
-.error-message {
-  color: red;
+.error {
+  color: #e53935;
   font-size: 14px;
-  margin-top: 10px;
+}
+
+.loading {
+  text-align: center;
+  font-size: 16px;
+  padding: 20px;
 }

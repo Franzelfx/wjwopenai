@@ -11,7 +11,7 @@ app = FastAPI()
 # Allow origin from local angular app
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200", "http://localhost:65335", "http://w7cauhlbal7amorf.myfritz.net:4200"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

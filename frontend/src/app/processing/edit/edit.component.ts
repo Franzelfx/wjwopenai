@@ -5,6 +5,8 @@ import {
   OnChanges,
   SimpleChanges,
 } from '@angular/core';
+import { FormControl } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';              // ← NEW
 import { BackendService } from '../../services/backend.service';
 
 @Component({
@@ -13,16 +15,22 @@ import { BackendService } from '../../services/backend.service';
   styleUrls: ['./edit.component.css'],
 })
 export class EditComponent implements OnInit, OnChanges {
+  /* ── inputs from parent list/tree ─────────────── */
   @Input() fileName!: string;
-  @Input() outputType!: string;
+  @Input() outputType!: string;   // 'success' | 'fail'
   @Input() projectId!: number;
 
-  jsonContent: string = '';
-  isJsonValid: boolean = true;
-  imageUrl: string | null = null; // Store the image URL
+  /* ── editor + preview state ───────────────────── */
+  jsonControl = new FormControl('');
+  imageUrl: string | null = null;
+  isJsonValid = true;
+  isLoading = false;
 
-  constructor(private backendService: BackendService) {}
+  private readonly imgExts = ['png', 'jpeg', 'jpg', 'tif', 'tiff'];
 
+  constructor(private backend: BackendService) { }
+
+  /* ─────────────────────────────────────────────── */
   ngOnInit(): void {
     this.resetJson();
   }
@@ -33,58 +41,74 @@ export class EditComponent implements OnInit, OnChanges {
     }
   }
 
-  validateJson(): void {
+  /* ─────────────────────────────────────────────── */
+  onEditorInput(): void {
+    const raw = this.jsonControl.value ?? '';
     try {
-      JSON.parse(this.jsonContent);
+      JSON.parse(raw);
       this.isJsonValid = true;
-    } catch (e) {
+    } catch {
       this.isJsonValid = false;
     }
   }
 
-  submitJson(): void {
-    if (this.isJsonValid) {
-      const encodedFileName = encodeURIComponent(this.fileName);
+  submit(): void {
+    if (!this.isJsonValid) { return; }
 
-      const jsonObject = JSON.parse(this.jsonContent);
-
-      this.backendService
-        .updateJsonFile(
-          this.projectId,
-          this.outputType,
-          encodedFileName,
-          jsonObject
-        )
-        .subscribe(
-          () => alert('JSON updated successfully'),
-          (error) => alert('Failed to update JSON: ' + error.message)
-        );
-    }
+    this.backend.updateJsonFile(
+      this.projectId,
+      this.outputType,
+      encodeURIComponent(this.fileName),
+      JSON.parse(this.jsonControl.value!)
+    ).subscribe({
+      next: () => alert('JSON updated successfully'),
+      error: (err) => alert('Failed to update JSON: ' + err.message),
+    });
   }
 
+  /* ─────────────────────────────────────────────── */
   resetJson(): void {
-    const encodedFileName = encodeURIComponent(this.fileName);
-    this.backendService
-      .getJsonFile(this.projectId, this.outputType, encodedFileName)
-      .subscribe(
-        (data) => (this.jsonContent = data),
-        (error) => alert('Failed to load JSON: ' + error.message)
-      );
+    if (!this.fileName) { return; }
 
-    this.loadCorrespondingImage(encodedFileName); // Load the image file
+    this.isLoading = true;
+    const encoded = encodeURIComponent(this.fileName);
+
+    /* fetch & pretty-print JSON */
+    this.backend.getJsonFile(this.projectId, this.outputType, encoded)
+      .subscribe({
+        next: (txt: string) => {
+          try { txt = JSON.stringify(JSON.parse(txt), null, 2); } catch { }
+          this.jsonControl.setValue(txt);
+          this.isJsonValid = true;
+        },
+        error: (err) => alert('Failed to load JSON: ' + err.message),
+        complete: () => (this.isLoading = false),
+      });
+
+    /* fetch preview image */
+    this.loadCorrespondingImage(this.fileName);
   }
 
-  loadCorrespondingImage(fileName: string): void {
-    // Assuming input file has the same name and different extension
-    const imageExtensions = ['png', 'jpeg', 'jpg', 'tif', 'tiff'];
-    for (const ext of imageExtensions) {
-      const imageName = fileName.replace('.json', `.${ext}`);
-      this.backendService.getInputFile(this.projectId, imageName).subscribe(
-        (imageBlob) => {
-          this.imageUrl = URL.createObjectURL(imageBlob); // Create an object URL for the image
-        },
-        (error) => console.warn(`Failed to load image ${imageName}:`, error)
-      );
+  /** sequentially try png → jpeg → … until one responds 200 */
+  private async loadCorrespondingImage(originalName: string): Promise<void> {
+    // clear previous preview
+    if (this.imageUrl) {
+      URL.revokeObjectURL(this.imageUrl);
+      this.imageUrl = null;
+    }
+
+    const base = originalName.replace(/\\.json$/i, '');
+    for (const ext of this.imgExts) {
+      const encodedImg = encodeURIComponent(`${base}.${ext}`);
+      try {
+        const blob = await firstValueFrom(
+          this.backend.getInputFile(this.projectId, encodedImg)
+        );
+        this.imageUrl = URL.createObjectURL(blob);
+        break;                                 // success: stop trying
+      } catch {
+        /* ignore 404 and continue */
+      }
     }
   }
 }

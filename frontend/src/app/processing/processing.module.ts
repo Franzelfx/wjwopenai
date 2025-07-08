@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ProcessingComponent } from './processing.component';
 import { ProcessingRoutingModule } from './processing-routing.module';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatTreeModule } from '@angular/material/tree';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -22,6 +22,7 @@ import { EditComponent } from './edit/edit.component';
     MatButtonModule,
     UploadModule,
     ResultsModule,
+    ReactiveFormsModule, // Import ReactiveFormsModule for form controls
   ],
 })
-export class ProcessingModule {}
+export class ProcessingModule { }

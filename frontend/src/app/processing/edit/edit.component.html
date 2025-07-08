@@ -1,17 +1,24 @@
-<div class="json-editor-container">
-  <!-- Image Display -->
-  <div *ngIf="imageUrl" class="image-container">
-    <img [src]="imageUrl" alt="Corresponding Image" class="image-preview" />
+<div class="json-editor-container" *ngIf="!isLoading; else loadingTpl">
+  <!-- Associated image preview (shown once the first matching image loads) -->
+  <div class="image-container" *ngIf="imageUrl">
+    <img [src]="imageUrl" alt="Preview" class="image-preview" />
   </div>
 
-  <!-- JSON Editor -->
-  <textarea id="json-editor" [(ngModel)]="jsonContent" (input)="validateJson()"></textarea>
+  <!-- JSON editor -->
+  <textarea
+    id="json-editor"
+    [formControl]="jsonControl"
+    (input)="onEditorInput()"
+    spellcheck="false"
+  ></textarea>
 
-  <!-- Submit Button -->
-  <div class="button-container">
-    <button (click)="submitJson()" [disabled]="!isJsonValid">Submit</button>
+  <!-- Buttons + validation message -->
+  <div class="button-row">
+    <button (click)="submit()" [disabled]="!isJsonValid">Save</button>
+    <span class="error" *ngIf="!isJsonValid">Invalid JSON syntax</span>
   </div>
-
-  <!-- Error Message -->
-  <p *ngIf="!isJsonValid" class="error-message">Invalid JSON format</p>
 </div>
+
+<ng-template #loadingTpl>
+  <p class="loading">Loading…</p>
+</ng-template>
