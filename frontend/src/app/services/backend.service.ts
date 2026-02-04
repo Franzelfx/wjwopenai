@@ -34,6 +34,7 @@ export class BackendService {
   }
 
   createProject(project: Partial<Project>): Observable<Project> {
+    console.log('[BackendService] Creating project:', project);
     return this.http.post<Project>(`${this.apiUrl}/`, project);
   }
 

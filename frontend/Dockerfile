@@ -1,4 +1,4 @@
-# Stage 1: Build the Angular app
+# Stage 1: Build the Angular app (also serves as dev stage)
 FROM node:18 as build-stage
 
 # Set the working directory in the container
@@ -12,6 +12,9 @@ RUN npm install --legacy-peer-deps
 
 # Copy the Angular app source code
 COPY . .
+
+# Expose port 4200 for dev server
+EXPOSE 4200
 
 # Build the Angular app using npx to avoid global CLI issues
 RUN npx ng build --configuration production

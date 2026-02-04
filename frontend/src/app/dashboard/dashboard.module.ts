@@ -6,6 +6,7 @@ import { DashboardRoutingModule } from './dashboard-routing.module';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatIconModule } from '@angular/material/icon';
 import { FormsModule } from '@angular/forms';
 import { EditProjectDialogComponent } from './edit-project-dialog/edit-project-dialog.component';
 
@@ -21,7 +22,8 @@ import { EditProjectDialogComponent } from './edit-project-dialog/edit-project-d
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
+    MatIconModule,
     FormsModule,
   ],
 })
-export class DashboardModule {}
+export class DashboardModule { }

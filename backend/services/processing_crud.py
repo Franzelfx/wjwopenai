@@ -131,8 +131,10 @@ def get_input_file(db: Session, project_id: int, file_name: str, folder_name: st
     # Decode the filename
     decoded_file_name = unquote(file_name)
 
-    # Remove "_invalid" from the file name if present
-    decoded_file_name = decoded_file_name.replace("_invalid", "")
+    # Remove "_invalid" suffix from the file name if present (before extension)
+    # Handle both "filename_invalid.ext" and "filename.ext"
+    import re
+    decoded_file_name = re.sub(r'_invalid(?=\.[^.]+$)', '', decoded_file_name)
 
     # Define the base path for input files, starting from the "input" directory
     base_path = os.path.join(PROJECTS_BASE_DIR, project.directory_name, "input")
@@ -141,7 +143,16 @@ def get_input_file(db: Session, project_id: int, file_name: str, folder_name: st
     file_path = find_file_in_directory(base_path, decoded_file_name)
 
     if not file_path:
-        raise HTTPException(status_code=404, detail="File not found")
+        # Try alternative: maybe the extension case differs
+        name_without_ext, ext = os.path.splitext(decoded_file_name)
+        for alt_ext in [ext.lower(), ext.upper()]:
+            alt_name = name_without_ext + alt_ext
+            file_path = find_file_in_directory(base_path, alt_name)
+            if file_path:
+                break
+
+    if not file_path:
+        raise HTTPException(status_code=404, detail=f"File not found: {decoded_file_name}")
 
     print(f"Found file at: {file_path}")  # Debugging output to verify the path
 

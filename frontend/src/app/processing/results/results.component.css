@@ -1,109 +1,283 @@
-.processing-container {
+.results-wrapper {
   display: flex;
   flex-direction: column;
-  /* Stacks the sections vertically */
-  height: 100vh;
-  padding: 20px;
-  box-sizing: border-box;
-  gap: 20px;
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
-.results-section {
-  width: 100%;
-  background-color: #ffffff;
-  border-radius: 15px;
-  padding: 20px;
-  box-sizing: border-box;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+.results-tabs {
   display: flex;
-  flex-direction: column;
-  margin-bottom: 20px;
+  gap: 4px;
+  margin-bottom: 10px;
+  border-bottom: 2px solid var(--border-color);
+  flex-shrink: 0;
 }
 
-.results-section h3 {
-  margin-top: 0;
-  color: #333;
-  border-bottom: 2px solid black;
-  padding-bottom: 10px;
-  margin-bottom: 20px;
-}
-
-.file-tree-container {
-  max-height: 400px;
-  overflow-y: auto;
-  padding-right: 10px;
-}
-
-.mat-tree-node {
+.tab-button {
   display: flex;
   align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  transition: all 0.15s ease;
+  margin-bottom: -2px;
 }
 
-.mat-tree-node button {
-  margin-right: 10px;
+.tab-button:hover {
+  color: var(--primary-500);
+  background: var(--bg-hover);
 }
 
-.mat-tree-node span {
+.tab-button.active {
+  color: var(--primary-600);
+  border-bottom-color: var(--primary-600);
+  background: var(--primary-50);
+}
+
+.tab-button mat-icon {
   font-size: 14px;
-  color: #333;
+  width: 14px;
+  height: 14px;
 }
 
-.mat-tree-node .file-node {
-  display: flex;
-  align-items: center;
-  padding-left: 20px;
+.tab-count {
+  background: var(--bg-tertiary);
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 0.6875rem;
+  font-weight: 700;
 }
 
-.file-icon {
-  margin-right: 5px;
-  font-size: 16px;
-  color: #666;
+.tab-button.active .tab-count {
+  background: var(--primary-600);
+  color: white;
 }
 
-.selected {
-  font-weight: bold;
-  color: #f44336;
-  padding: 2px 4px;
-  border-radius: 3px;
-  background-color: #f9f9f9;
-}
-
-.file {
-  padding-left: 25px;
-  font-style: italic;
-  color: #666;
-}
-
-.loading-container {
+.tab-content {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 200px;
+  overflow: hidden;
+  min-height: 0;
 }
 
-.loading-container p {
-  margin-top: 10px;
-  color: #555;
+.search-container {
+  position: relative;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
 }
 
 .search-box {
-  margin-bottom: 10px;
-  padding: 8px;
-  font-size: 14px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
   width: 100%;
+  padding: 8px 10px 8px 32px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  transition: all 0.15s ease;
   box-sizing: border-box;
+  background: var(--tree-bg);
+  color: var(--text-primary);
 }
 
-.button-container {
+.search-box:focus {
+  outline: none;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.search-box::placeholder {
+  color: var(--text-muted);
+}
+
+.file-tree-container {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--tree-bg);
+  border: 1px solid var(--tree-border);
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+  min-height: 0;
+}
+
+.modern-tree {
+  background: transparent;
+}
+
+.tree-node {
+  padding: 2px 0;
+  transition: all 0.15s ease;
+}
+
+.tree-node:hover {
+  background: var(--tree-hover);
+  border-radius: 4px;
+}
+
+.toggle-button {
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
   display: flex;
-  gap: 10px;
-  /* Adjust gap between buttons */
-  margin-top: 10px;
-  /* Adds a little space between the file tree and the buttons */
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+  color: var(--text-secondary);
+}
+
+.toggle-button:hover {
+  background: var(--bg-hover);
+}
+
+.toggle-button mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.folder-icon {
+  color: var(--folder-color);
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.file-icon {
+  color: var(--file-color);
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+}
+
+.node-label {
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.node-label:hover {
+  background: var(--tree-hover);
+  color: var(--primary-600);
+}
+
+.file-node {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  margin: 1px 0;
+}
+
+.file-node:hover {
+  background: var(--tree-hover);
+  color: var(--primary-600);
+}
+
+.selected {
+  background: var(--tree-selected-bg) !important;
+  color: var(--tree-selected-text) !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.selected mat-icon {
+  color: var(--tree-selected-text) !important;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.download-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: white;
+}
+
+.download-button mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.download-button:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.csv-button {
+  background: var(--success-600);
+}
+
+.csv-button:hover {
+  background: var(--success-500);
+}
+
+.excel-button {
+  background: var(--primary-600);
+}
+
+.excel-button:hover {
+  background: var(--primary-500);
+}
+
+/* Scrollbar styling */
+.file-tree-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.file-tree-container::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.file-tree-container::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.file-tree-container::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

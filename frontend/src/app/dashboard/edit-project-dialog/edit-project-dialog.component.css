@@ -1,56 +1,163 @@
-/* General styling for the dialog */
+/* Modern Edit Project Dialog Styling */
+
+:host {
+  display: block;
+}
+
+/* Header with icon */
+.dialog-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px 24px 20px 24px;
+  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+  margin: -24px -24px 0 -24px;
+  border-radius: 8px 8px 0 0;
+}
+
+.header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.header-icon mat-icon {
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+  color: white;
+}
+
+.header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+h1[mat-dialog-title] {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: white;
+  letter-spacing: -0.01em;
+}
+
+.dialog-subtitle {
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Content area */
 mat-dialog-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 20px 0;
+  gap: 0;
+  padding: 24px 0 8px 0;
+  min-width: 400px;
+  max-width: 480px;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .full-width {
   width: 100%;
 }
 
-mat-form-field {
+/* Form field styling */
+::ng-deep .mat-mdc-form-field {
   width: 100%;
 }
 
-h1[mat-dialog-title] {
-  font-size: 20px;
-  font-weight: bold;
-  margin: 0;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #e0e0e0;
+::ng-deep .mat-mdc-form-field-outline {
+  border-radius: 8px !important;
 }
 
-/* Styling for the dialog actions (buttons) */
+::ng-deep .mat-mdc-text-field-wrapper {
+  background: var(--bg-secondary) !important;
+}
+
+::ng-deep .mat-mdc-form-field-icon-prefix {
+  color: var(--primary-500);
+  padding-right: 8px;
+}
+
+::ng-deep .mat-mdc-form-field-hint {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+::ng-deep textarea.mat-mdc-input-element {
+  min-height: 60px;
+  resize: vertical;
+}
+
+/* Dialog actions */
 mat-dialog-actions {
   display: flex;
   justify-content: flex-end;
-  padding-top: 20px;
-  border-top: 1px solid #e0e0e0;
-  margin-top: 20px;
-}
-
-.cancel-button {
-  color: #f44336;
-}
-
-.save-button {
-  background-color: #4caf50;
-  color: white;
-}
-
-.save-button:hover {
-  background-color: #43a047;
+  gap: 12px;
+  padding: 16px 0 0 0;
+  border-top: 1px solid var(--border-color);
+  margin: 8px 0 0 0;
 }
 
 .cancel-button,
 .save-button {
-  font-weight: bold;
-  text-transform: uppercase;
   padding: 10px 20px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  border: none;
+  min-height: 42px;
 }
 
-.save-button.mat-button {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+.cancel-button mat-icon,
+.save-button mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.cancel-button {
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+}
+
+.cancel-button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.save-button {
+  background: var(--primary-600);
+  color: white;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+}
+
+.save-button:hover:not([disabled]) {
+  background: var(--primary-500);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.4);
+  transform: translateY(-1px);
+}
+
+.save-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }

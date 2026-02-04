@@ -4,6 +4,9 @@ import {
   OnDestroy,
   ChangeDetectorRef,
   NgZone,
+  ElementRef,
+  ViewChild,
+  HostListener,
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { BackendService } from '../services/backend.service';
@@ -20,18 +23,37 @@ interface StatusData {
   styleUrls: ['./processing.component.css'],
 })
 export class ProcessingComponent implements OnInit, OnDestroy {
+  @ViewChild('processingContainer', { static: true }) containerRef!: ElementRef;
+
   projectId: number = 0;
   progress: number = 0;
   status: string = 'pending';
   sseSubscription!: Subscription;
   selectedFile: { fileName: string; outputType: string } | null = null;
 
+  // Resizable pane widths
+  paneWidths: number[] = [280, 320];
+  private isResizing = false;
+  private resizeIndex = 0;
+  private startX = 0;
+  private startWidths: number[] = [];
+  private minPaneWidth = 200;
+  private maxPaneWidth = 600;
+
   constructor(
     private route: ActivatedRoute,
     private backendService: BackendService,
     private cdr: ChangeDetectorRef,
-    private ngZone: NgZone // Inject NgZone
-  ) { }
+    private ngZone: NgZone
+  ) {
+    // Load saved widths from localStorage
+    const savedWidths = localStorage.getItem('processingPaneWidths');
+    if (savedWidths) {
+      try {
+        this.paneWidths = JSON.parse(savedWidths);
+      } catch { }
+    }
+  }
 
   ngOnInit(): void {
     console.log('ProcessingComponent initialized');
@@ -42,6 +64,42 @@ export class ProcessingComponent implements OnInit, OnDestroy {
       this.listenToProcessingStatus();
     } else {
       console.error('Project ID is missing in the route parameters');
+    }
+  }
+
+  // Resize handling
+  startResize(event: MouseEvent, index: number): void {
+    event.preventDefault();
+    this.isResizing = true;
+    this.resizeIndex = index;
+    this.startX = event.clientX;
+    this.startWidths = [...this.paneWidths];
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onMouseMove(event: MouseEvent): void {
+    if (!this.isResizing) return;
+
+    const deltaX = event.clientX - this.startX;
+    const newWidth = Math.min(
+      this.maxPaneWidth,
+      Math.max(this.minPaneWidth, this.startWidths[this.resizeIndex] + deltaX)
+    );
+
+    this.paneWidths[this.resizeIndex] = newWidth;
+    this.cdr.detectChanges();
+  }
+
+  @HostListener('document:mouseup')
+  onMouseUp(): void {
+    if (this.isResizing) {
+      this.isResizing = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      // Save to localStorage
+      localStorage.setItem('processingPaneWidths', JSON.stringify(this.paneWidths));
     }
   }
 

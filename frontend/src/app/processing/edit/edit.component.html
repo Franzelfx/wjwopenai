@@ -1,24 +1,67 @@
-<div class="json-editor-container" *ngIf="!isLoading; else loadingTpl">
-  <!-- Associated image preview (shown once the first matching image loads) -->
-  <div class="image-container" *ngIf="imageUrl">
-    <img [src]="imageUrl" alt="Preview" class="image-preview" />
+<div class="edit-wrapper" *ngIf="!isLoading; else loadingTpl">
+  <!-- Image Preview Section -->
+  <div class="image-section" *ngIf="imageUrl" [style.flex]="imageFlex">
+    <div class="image-header">
+      <mat-icon>image</mat-icon>
+      <span>Dokumentvorschau</span>
+      <button class="zoom-btn" (click)="toggleZoom()" [title]="isZoomed ? 'Verkleinern' : 'Vergrößern'">
+        <mat-icon>{{ isZoomed ? 'zoom_out' : 'zoom_in' }}</mat-icon>
+      </button>
+    </div>
+    <div class="image-container" [class.zoomed]="isZoomed">
+      <img [src]="imageUrl" alt="Dokumentvorschau" class="image-preview" (click)="toggleZoom()" />
+    </div>
   </div>
 
-  <!-- JSON editor -->
-  <textarea
-    id="json-editor"
-    [formControl]="jsonControl"
-    (input)="onEditorInput()"
-    spellcheck="false"
-  ></textarea>
+  <!-- No Image Placeholder -->
+  <div class="no-image" *ngIf="!imageUrl">
+    <mat-icon>hide_image</mat-icon>
+    <span>Kein Bild verfügbar</span>
+  </div>
 
-  <!-- Buttons + validation message -->
-  <div class="button-row">
-    <button (click)="submit()" [disabled]="!isJsonValid">Save</button>
-    <span class="error" *ngIf="!isJsonValid">Invalid JSON syntax</span>
+  <!-- Vertical Resize Handle -->
+  <div class="vertical-resize-handle" *ngIf="imageUrl" (mousedown)="startVerticalResize($event)" title="Ziehen zum Anpassen">
+    <div class="handle-line"></div>
+  </div>
+
+  <!-- JSON Editor Section -->
+  <div class="json-section" [style.flex]="jsonFlex">
+    <div class="json-header">
+      <mat-icon>code</mat-icon>
+      <span>JSON Daten</span>
+      <span class="status-indicator" [class.valid]="isJsonValid" [class.invalid]="!isJsonValid">
+        {{ isJsonValid ? 'Gültig' : 'Ungültig' }}
+      </span>
+    </div>
+    <textarea
+      class="json-editor"
+      [formControl]="jsonControl"
+      (input)="onEditorInput()"
+      spellcheck="false"
+      placeholder="JSON Daten werden geladen..."
+    ></textarea>
+  </div>
+
+  <!-- Action Bar -->
+  <div class="action-bar">
+    <button class="save-btn" (click)="submit()" [disabled]="!isJsonValid">
+      <mat-icon>save</mat-icon>
+      Speichern
+    </button>
+    <span class="validation-msg" *ngIf="!isJsonValid">
+      <mat-icon>error_outline</mat-icon>
+      Ungültige JSON Syntax
+    </span>
+    <span class="success-msg" *ngIf="showSaveSuccess">
+      <mat-icon>check_circle</mat-icon>
+      Gespeichert!
+    </span>
   </div>
 </div>
 
 <ng-template #loadingTpl>
-  <p class="loading">Loading…</p>
+  <div class="loading-state">
+    <mat-icon class="spin">sync</mat-icon>
+    <span>Wird geladen...</span>
+  </div>
 </ng-template>

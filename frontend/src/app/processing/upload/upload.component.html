@@ -1,84 +1,106 @@
 <!-- upload.component.html -->
-<div class="processing-container">
-  <div class="sidebar">
-    <h3>Folder Structure</h3>
-    <div class="header-line"></div>
-
+<div class="upload-wrapper">
+  <!-- File Tree Section -->
+  <div class="section-group file-section">
+    <div class="section-title">
+      <mat-icon class="title-icon">folder_open</mat-icon>
+      <h3>Dateien</h3>
+    </div>
     <div class="file-tree-container">
       <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
-        <!-- Folder Node -->
-        <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
-          <button mat-icon-button matTreeNodeToggle>
-            <mat-icon>
+        <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding class="tree-node">
+          <button mat-icon-button matTreeNodeToggle class="toggle-button">
+            <mat-icon class="folder-icon">
               {{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}
             </mat-icon>
           </button>
-          <span (click)="selectItem(node)"
-                [class.selected]="selectedItem?.name===node.name"
-                [class.file]="!node.expandable">
+          <span (click)="selectItem(node)" [class.selected]="selectedItem?.name===node.name" class="node-label">
             {{ node.name }}
           </span>
         </mat-tree-node>
-
-        <!-- File Node -->
-        <mat-tree-node *matTreeNodeDef="let node; when: !hasChild" matTreeNodePadding>
-          <span class="file-node" (click)="selectItem(node)"
-                [class.selected]="selectedItem?.name===node.name">
-            <mat-icon class="file-icon">insert_drive_file</mat-icon>
+        <mat-tree-node *matTreeNodeDef="let node; when: !hasChild" matTreeNodePadding class="tree-node">
+          <span class="file-node" (click)="selectItem(node)" [class.selected]="selectedItem?.name===node.name">
+            <mat-icon class="file-icon">description</mat-icon>
             {{ node.name }}
           </span>
         </mat-tree-node>
       </mat-tree>
     </div>
+  </div>
 
-    <div class="upload-section">
-      <!-- Folder Picker -->
-      <label class="upload-label">
+  <!-- Upload Folder Section -->
+  <div class="section-group">
+    <div class="section-title">
+      <mat-icon class="title-icon">create_new_folder</mat-icon>
+      <h3>Ordner</h3>
+    </div>
+    <div class="upload-area">
+      <label class="file-input-label">
         <input type="file" webkitdirectory (change)="onFolderSelected($event)" hidden>
-        {{ selectedFolderName || 'Select Folder…' }}
+        <div class="file-input-display">
+          <mat-icon>folder</mat-icon>
+          <span>{{ selectedFolderName || 'Ordner auswählen...' }}</span>
+        </div>
       </label>
-      <button class="upload-button" (click)="uploadFolder()" [disabled]="!inputFiles.length">
-        Upload Folder
+      <button class="action-button primary-button" (click)="uploadFolder()" [disabled]="!inputFiles.length">
+        <mat-icon>cloud_upload</mat-icon>
+        Hochladen
       </button>
-      <button class="delete-button" (click)="deleteSelectedItem()" [disabled]="!selectedItem">
-        Delete
+      <button class="action-button danger-button" (click)="deleteSelectedItem()" [disabled]="!selectedItem">
+        <mat-icon>delete</mat-icon>
+        Löschen
       </button>
+    </div>
+  </div>
 
-      <!-- Prompt‐MD Picker -->
-      <label class="upload-label md-upload-label">
+  <!-- Prompt Section -->
+  <div class="section-group">
+    <div class="section-title">
+      <mat-icon class="title-icon">article</mat-icon>
+      <h3>Prompt</h3>
+    </div>
+    <div class="upload-area">
+      <label class="file-input-label">
         <input type="file" accept=".md" (change)="onPromptSelected($event)" hidden>
-        {{ promptFile?.name || 'Select Prompt (.md)…' }}
+        <div class="file-input-display">
+          <mat-icon>description</mat-icon>
+          <span>{{ promptFile?.name || 'Prompt (.md)...' }}</span>
+        </div>
       </label>
-      <button class="upload-button md-upload-button"
-              (click)="uploadPrompt()"
-              [disabled]="!promptFile">
-        Upload Prompt
+      <button class="action-button secondary-button" (click)="uploadPrompt()" [disabled]="!promptFile">
+        <mat-icon>upload_file</mat-icon>
+        Hochladen
       </button>
-      <p class="md-file-name" *ngIf="currentPromptName">
-        Current prompt: {{ currentPromptName }}
+      <p class="current-file-info" *ngIf="currentPromptName">
+        <mat-icon>check_circle</mat-icon>
+        <strong>{{ currentPromptName }}</strong>
       </p>
+    </div>
+  </div>
 
-      <!-- Recorder‐style OCR controls -->
-      <div class="ocr-controls">
-        <button mat-icon-button class="ocr-toggle"
-                (click)="togglePlayPause()"
-                [attr.aria-label]="
-                  ocrState==='in_progress'
-                    ? 'Pause OCR'
-                    : ocrState==='paused'
-                      ? 'Resume OCR'
-                      : 'Start OCR'
-                ">
-          <mat-icon>
-            {{ ocrState==='in_progress' ? 'pause' : 'play_arrow' }}
-          </mat-icon>
-        </button>
-        <button mat-icon-button class="ocr-stop"
-                (click)="stopOCR()"
-                [disabled]="ocrState==='idle'"
-                aria-label="Stop OCR">
-          <mat-icon>stop</mat-icon>
-        </button>
+  <!-- OCR Section -->
+  <div class="section-group ocr-section">
+    <div class="section-title">
+      <mat-icon class="title-icon">smart_toy</mat-icon>
+      <h3>OCR</h3>
+    </div>
+    <div class="ocr-controls">
+      <button class="ocr-button play-button"
+              (click)="togglePlayPause()"
+              [class.active]="ocrState==='in_progress'"
+              [title]="ocrState==='in_progress' ? 'Pause' : ocrState==='paused' ? 'Fortsetzen' : 'Start'">
+        <mat-icon>{{ ocrState==='in_progress' ? 'pause' : 'play_arrow' }}</mat-icon>
+      </button>
+      <button class="ocr-button stop-button"
+              (click)="stopOCR()"
+              [disabled]="ocrState==='idle'"
+              title="Stop">
+        <mat-icon>stop</mat-icon>
+      </button>
+      <div class="ocr-status" *ngIf="ocrState !== 'idle'">
+        <span class="status-badge" [class.in-progress]="ocrState==='in_progress'" [class.paused]="ocrState==='paused'">
+          {{ ocrState === 'in_progress' ? 'Läuft...' : 'Pausiert' }}
+        </span>
       </div>
     </div>
   </div>

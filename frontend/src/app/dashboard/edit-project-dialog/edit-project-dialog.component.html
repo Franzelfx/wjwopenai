@@ -1,16 +1,38 @@
-<h1 mat-dialog-title>{{ title }}</h1>
-<div mat-dialog-content>
-  <mat-form-field appearance="outline" class="full-width">
-    <mat-label>Name</mat-label>
-    <input matInput [(ngModel)]="data.name" />
-  </mat-form-field>
-
-  <mat-form-field appearance="outline" class="full-width">
-    <mat-label>Description</mat-label>
-    <textarea matInput [(ngModel)]="data.description"></textarea>
-  </mat-form-field>
+<div class="dialog-header">
+  <div class="header-icon">
+    <mat-icon>{{ icon }}</mat-icon>
+  </div>
+  <div class="header-text">
+    <h1 mat-dialog-title>{{ title }}</h1>
+    <p class="dialog-subtitle">{{ subtitle }}</p>
+  </div>
 </div>
+
+<div mat-dialog-content>
+  <div class="form-section">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Projektname</mat-label>
+      <mat-icon matPrefix>folder_open</mat-icon>
+      <input matInput [(ngModel)]="data.name" placeholder="z.B. Quartalsanalyse Q1 2026" required />
+      <mat-hint>Pflichtfeld – wählen Sie einen eindeutigen Namen</mat-hint>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Beschreibung</mat-label>
+      <mat-icon matPrefix>subject</mat-icon>
+      <textarea matInput [(ngModel)]="data.description" rows="3" placeholder="Kurze Beschreibung des Projekts..."></textarea>
+      <mat-hint>Optional – fügen Sie zusätzliche Informationen hinzu</mat-hint>
+    </mat-form-field>
+  </div>
+</div>
+
 <div mat-dialog-actions>
-  <button mat-button class="cancel-button" (click)="onCancel()">Cancel</button>
-  <button mat-button class="save-button" [mat-dialog-close]="data">Save</button>
+  <button mat-button class="cancel-button" (click)="onCancel()">
+    <mat-icon>close</mat-icon>
+    Abbrechen
+  </button>
+  <button mat-flat-button class="save-button" [mat-dialog-close]="data" [disabled]="!data.name || data.name.trim().length === 0">
+    <mat-icon>{{ isNew ? 'add' : 'save' }}</mat-icon>
+    {{ isNew ? 'Projekt erstellen' : 'Speichern' }}
+  </button>
 </div>

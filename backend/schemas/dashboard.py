@@ -1,10 +1,11 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
 
 
 class ProjectBase(BaseModel):
     name: str
-    description: str = None
+    description: Optional[str] = None
 
 
 class ProjectCreate(ProjectBase):

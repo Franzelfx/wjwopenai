@@ -1,3 +1,4 @@
+# Development mode - hot reload for both frontend and backend
 services:
   backend:
     build:
@@ -8,7 +9,7 @@ services:
     environment:
       - ENV=DEV
     ports:
-      - "6006:8000"  # FastAPI backend exposed on port 6006
+      - "6006:8000"
     volumes:
       - ./backend:/app
     networks:
@@ -17,16 +18,18 @@ services:
   frontend:
     build:
       context: ./frontend
-      target: ${BUILD_TARGET:-build-stage}  # Use build-stage for dev, default for prod
+      target: build-stage
     container_name: angular_app
     environment:
       - ENV=DEV
     ports:
-      - "4200:4200"  # Map host port 4200 to container port 4200 (dev server)
+      - "4200:4200"
     volumes:
       - ./frontend:/app
       - /app/node_modules
     command: npx ng serve --host 0.0.0.0 --port 4200 --poll 2000
+    depends_on:
+      - backend
     networks:
       - app-network
 

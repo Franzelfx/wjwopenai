@@ -1,0 +1,36 @@
+# Production mode - compiled frontend with nginx, no hot reload
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: fastapi_app
+    env_file:
+      - .env
+    environment:
+      - ENV=PROD
+    ports:
+      - "6006:8000"
+    volumes:
+      - ./backend/projects:/app/projects
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+      # Uses the full multi-stage build (nginx serving compiled app)
+    container_name: angular_app
+    environment:
+      - ENV=PROD
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

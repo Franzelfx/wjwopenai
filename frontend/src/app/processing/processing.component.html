@@ -1,19 +1,67 @@
-<div class="processing-container">
-  <!-- Upload Section -->
-  <div class="upload-section">
-    <app-upload [projectId]="projectId"></app-upload>
+<div class="processing-wrapper">
+  <div class="processing-container" #processingContainer>
+    <!-- Upload Section -->
+    <div class="processing-card upload-section" [style.width.px]="paneWidths[0]">
+      <div class="card-header">
+        <mat-icon class="card-icon">cloud_upload</mat-icon>
+        <h3>Dateien & Verarbeitung</h3>
+        <button class="back-link" routerLink="/" title="Zurück zum Dashboard">
+          <mat-icon>home</mat-icon>
+        </button>
+      </div>
+      <div class="card-body">
+        <app-upload [projectId]="projectId"></app-upload>
+      </div>
+    </div>
+
+    <!-- Resize Handle 1 -->
+    <div class="resize-handle" (mousedown)="startResize($event, 0)" title="Ziehen zum Anpassen">
+      <div class="handle-grip"></div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="processing-card results-section" [style.width.px]="paneWidths[1]">
+      <div class="card-header">
+        <mat-icon class="card-icon">assignment</mat-icon>
+        <h3>Ergebnisse</h3>
+        <span class="file-count" *ngIf="selectedFile">{{ selectedFile.fileName }}</span>
+      </div>
+      <div class="card-body">
+        <app-results [projectId]="projectId" (fileSelected)="onFileSelected($event)"></app-results>
+      </div>
+    </div>
+
+    <!-- Resize Handle 2 -->
+    <div class="resize-handle" (mousedown)="startResize($event, 1)" title="Ziehen zum Anpassen">
+      <div class="handle-grip"></div>
+    </div>
+
+    <!-- Edit Section -->
+    <div class="processing-card editor-section" *ngIf="selectedFile">
+      <div class="card-header">
+        <mat-icon class="card-icon">edit_note</mat-icon>
+        <h3>Editor</h3>
+        <button class="close-editor" (click)="selectedFile = null" title="Editor schließen">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      <div class="card-body editor-body">
+        <app-edit [fileName]="selectedFile.fileName" [outputType]="selectedFile.outputType" [projectId]="projectId"></app-edit>
+      </div>
+    </div>
+
+    <!-- Empty State when no file selected -->
+    <div class="processing-card empty-editor" *ngIf="!selectedFile">
+      <div class="empty-state-content">
+        <mat-icon class="empty-icon">touch_app</mat-icon>
+        <h3>Datei auswählen</h3>
+        <p>Klicken Sie auf eine Datei in den Ergebnissen</p>
+      </div>
+    </div>
   </div>
 
-  <!-- Results Section -->
-  <div class="results-section">
-    <app-results [projectId]="projectId" (fileSelected)="onFileSelected($event)"></app-results>
-  </div>
-
-  <!-- Edit Section -->
-  <div class="json-editor-container" *ngIf="selectedFile">
-    <app-edit [fileName]="selectedFile.fileName" [outputType]="selectedFile.outputType" [projectId]="projectId"></app-edit>
+  <!-- Progress Bar -->
+  <div class="progress-bar-wrapper">
+    <app-progress-bar [progress]="progress" [status]="status"></app-progress-bar>
   </div>
 </div>
-
-<!-- Progress Bar always at the bottom -->
-<app-progress-bar [progress]="progress" [status]="status"></app-progress-bar>

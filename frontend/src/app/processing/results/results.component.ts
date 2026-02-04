@@ -33,6 +33,9 @@ export class ResultsComponent implements OnInit {
   isLoading: boolean = true;
   convertToCsv: boolean = false;
   selectedItem: FileNode | null = null;
+  activeTab: 'success' | 'failed' = 'success';
+  successCount: number = 0;
+  failedCount: number = 0;
 
   treeControl = new FlatTreeControl<FlatNode>(
     (node) => node.level,
@@ -68,7 +71,7 @@ export class ResultsComponent implements OnInit {
 
   expandedNodeSet = new Set<string>();
 
-  constructor(private backendService: BackendService) {}
+  constructor(private backendService: BackendService) { }
 
   ngOnInit(): void {
     this.fetchFileTree();
@@ -86,6 +89,10 @@ export class ResultsComponent implements OnInit {
         this.failDataSource.data = failNodes;
         this.filteredFailDataSource.data = failNodes;
 
+        // Count files
+        this.successCount = this.countFiles(successNodes);
+        this.failedCount = this.countFiles(failNodes);
+
         this.isLoading = false;
       },
       (error) => {
@@ -93,6 +100,18 @@ export class ResultsComponent implements OnInit {
         this.isLoading = false;
       }
     );
+  }
+
+  countFiles(nodes: FileNode[]): number {
+    let count = 0;
+    for (const node of nodes) {
+      if (node.children && node.children.length > 0) {
+        count += this.countFiles(node.children);
+      } else {
+        count++;
+      }
+    }
+    return count;
   }
 
   buildFileTree(obj: { [key: string]: any }): FileNode[] {

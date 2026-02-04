@@ -16,7 +16,7 @@ export class ProjectListComponent implements OnInit {
     private backendService: BackendService,
     public dialog: MatDialog,
     private router: Router
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.loadProjects();
@@ -35,18 +35,28 @@ export class ProjectListComponent implements OnInit {
 
   openAddProjectDialog(): void {
     const dialogRef = this.dialog.open(EditProjectDialogComponent, {
-      width: '250px',
+      width: '500px',
       data: { name: '', description: '' },
+      panelClass: 'modern-dialog'
     });
 
     dialogRef.afterClosed().subscribe((result) => {
-      if (result) {
+      if (result && result.name && result.name.trim()) {
+        console.log('Creating project with data:', result);
         this.backendService.createProject(result).subscribe(
           (newProject) => {
-            this.projects.push(newProject);
+            console.log('Project created successfully:', newProject);
+            this.loadProjects(); // Reload to get fresh data
           },
           (error) => {
             console.error('Failed to add project:', error);
+            let errorMessage = 'Fehler beim Erstellen des Projekts.';
+            if (error.error && error.error.detail) {
+              errorMessage += ' Details: ' + error.error.detail;
+            } else if (error.message) {
+              errorMessage += ' ' + error.message;
+            }
+            alert(errorMessage + ' Bitte versuchen Sie es erneut.');
           }
         );
       }
@@ -55,8 +65,9 @@ export class ProjectListComponent implements OnInit {
 
   editProject(project: any): void {
     const dialogRef = this.dialog.open(EditProjectDialogComponent, {
-      width: '250px',
+      width: '500px',
       data: { name: project.name, description: project.description },
+      panelClass: 'modern-dialog'
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -65,9 +76,11 @@ export class ProjectListComponent implements OnInit {
           () => {
             project.name = result.name;
             project.description = result.description;
+            this.loadProjects(); // Reload to ensure sync
           },
           (error) => {
             console.error('Failed to update project:', error);
+            alert('Fehler beim Aktualisieren des Projekts. Bitte versuchen Sie es erneut.');
           }
         );
       }
@@ -75,13 +88,14 @@ export class ProjectListComponent implements OnInit {
   }
 
   deleteProject(projectId: number): void {
-    if (confirm('Are you sure you want to delete this project?')) {
+    if (confirm('Sind Sie sicher, dass Sie dieses Projekt löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.')) {
       this.backendService.deleteProject(projectId).subscribe(
         () => {
           this.projects = this.projects.filter((p) => p.id !== projectId);
         },
         (error) => {
           console.error('Failed to delete project:', error);
+          alert('Fehler beim Löschen des Projekts. Bitte versuchen Sie es erneut.');
         }
       );
     }

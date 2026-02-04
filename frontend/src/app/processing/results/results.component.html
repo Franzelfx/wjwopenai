@@ -1,63 +1,88 @@
-<div class="processing-container">
-  <!-- Results Section for Successful Files -->
-  <div class="results-section">
-    <h3>Successful Files</h3>
-    <input type="text" placeholder="Search Successful Files" (input)="filterSuccessFiles($event)" class="search-box" />
+<div class="results-wrapper">
+  <div class="results-tabs">
+    <button class="tab-button" [class.active]="activeTab === 'success'" (click)="activeTab = 'success'">
+      <mat-icon>check_circle</mat-icon>
+      <span class="tab-count">{{ successCount }}</span>
+    </button>
+    <button class="tab-button" [class.active]="activeTab === 'failed'" (click)="activeTab = 'failed'">
+      <mat-icon>error</mat-icon>
+      <span class="tab-count">{{ failedCount }}</span>
+    </button>
+  </div>
+
+  <!-- Success Tab -->
+  <div class="tab-content" *ngIf="activeTab === 'success'">
+    <div class="search-container">
+      <mat-icon class="search-icon">search</mat-icon>
+      <input type="text" placeholder="Suchen..." (input)="filterSuccessFiles($event)" class="search-box" />
+    </div>
+
     <div class="file-tree-container">
-      <mat-tree [dataSource]="filteredSuccessDataSource" [treeControl]="treeControl" class="mat-tree">
-        <!-- Folder Node -->
-        <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
-          <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
-            <mat-icon>{{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}</mat-icon>
+      <mat-tree [dataSource]="filteredSuccessDataSource" [treeControl]="treeControl" class="modern-tree">
+        <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding class="tree-node">
+          <button mat-icon-button matTreeNodeToggle class="toggle-button">
+            <mat-icon class="folder-icon">{{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}</mat-icon>
           </button>
-          <span (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name" [class.file]="!node.expandable">
+          <span (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name" class="node-label">
             {{node.name}}
           </span>
         </mat-tree-node>
-
-        <!-- File Node -->
-        <mat-tree-node *matTreeNodeDef="let node; when: !hasChild" matTreeNodePadding>
+        <mat-tree-node *matTreeNodeDef="let node; when: !hasChild" matTreeNodePadding class="tree-node">
           <span class="file-node" (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name">
-            <mat-icon class="file-icon">insert_drive_file</mat-icon>
+            <mat-icon class="file-icon">description</mat-icon>
             {{node.name}}
           </span>
         </mat-tree-node>
       </mat-tree>
     </div>
-    <div class="button-container">
-      <button mat-raised-button color="primary" (click)="downloadSuccessOutput()">Download as CSV</button>
-      <button mat-raised-button color="accent" (click)="downloadSuccessExcel()">Download as Excel</button>
+
+    <div class="action-buttons">
+      <button class="download-button csv-button" (click)="downloadSuccessOutput()" title="Als CSV exportieren">
+        <mat-icon>table_chart</mat-icon>
+        CSV
+      </button>
+      <button class="download-button excel-button" (click)="downloadSuccessExcel()" title="Als Excel exportieren">
+        <mat-icon>grid_on</mat-icon>
+        Excel
+      </button>
     </div>
   </div>
 
-  <!-- Results Section for Failed Files -->
-  <div class="results-section">
-    <h3>Failed Files</h3>
-    <input type="text" placeholder="Search Failed Files" (input)="filterFailedFiles($event)" class="search-box" />
+  <!-- Failed Tab -->
+  <div class="tab-content" *ngIf="activeTab === 'failed'">
+    <div class="search-container">
+      <mat-icon class="search-icon">search</mat-icon>
+      <input type="text" placeholder="Suchen..." (input)="filterFailedFiles($event)" class="search-box" />
+    </div>
+
     <div class="file-tree-container">
-      <mat-tree [dataSource]="filteredFailDataSource" [treeControl]="treeControl" class="mat-tree">
-        <!-- Folder Node -->
-        <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
-          <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
-            <mat-icon>{{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}</mat-icon>
+      <mat-tree [dataSource]="filteredFailDataSource" [treeControl]="treeControl" class="modern-tree">
+        <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding class="tree-node">
+          <button mat-icon-button matTreeNodeToggle class="toggle-button">
+            <mat-icon class="folder-icon">{{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}</mat-icon>
           </button>
-          <span (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name" [class.file]="!node.expandable">
+          <span (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name" class="node-label">
             {{node.name}}
           </span>
         </mat-tree-node>
-
-        <!-- File Node -->
-        <mat-tree-node *matTreeNodeDef="let node; when: !hasChild" matTreeNodePadding>
+        <mat-tree-node *matTreeNodeDef="let node; when: !hasChild" matTreeNodePadding class="tree-node">
           <span class="file-node" (click)="selectItem(node)" [class.selected]="selectedItem?.name === node.name">
-            <mat-icon class="file-icon">insert_drive_file</mat-icon>
+            <mat-icon class="file-icon">description</mat-icon>
             {{node.name}}
           </span>
         </mat-tree-node>
       </mat-tree>
     </div>
-    <div class="button-container">
-      <button mat-raised-button color="primary" (click)="downloadFailOutput()">Download as CSV</button>
-      <button mat-raised-button color="accent" (click)="downloadFailExcel()">Download as Excel</button>
+
+    <div class="action-buttons">
+      <button class="download-button csv-button" (click)="downloadFailOutput()">
+        <mat-icon>table_chart</mat-icon>
+        CSV herunterladen
+      </button>
+      <button class="download-button excel-button" (click)="downloadFailExcel()">
+        <mat-icon>grid_on</mat-icon>
+        Excel herunterladen
+      </button>
     </div>
   </div>
 </div>

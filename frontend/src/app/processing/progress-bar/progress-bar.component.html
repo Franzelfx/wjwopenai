@@ -1,8 +1,13 @@
 <!-- progress-bar.component.html -->
 <div class="progress-container">
-  <div class="progress-bar" [ngStyle]="{ 'width.%': progress }"></div>
-  <p class="progress-text">{{ progress }}%</p>
-  <span class="progress-status" [ngClass]="statusClass">
-    {{ status }}
-  </span>
+  <div class="progress-info">
+    <mat-icon class="status-icon" [ngClass]="statusClass">{{ statusIcon }}</mat-icon>
+    <span class="status-label" [ngClass]="statusClass">{{ statusLabel }}</span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" [ngStyle]="{ 'width.%': progress }" [ngClass]="statusClass"></div>
+  </div>
+  <div class="progress-stats">
+    <span class="progress-percent">{{ progress }}%</span>
+  </div>
 </div>
